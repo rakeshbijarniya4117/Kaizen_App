@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaizen L&T Valves | Continuous Improvement</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <script src="navbar_loader.js"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; overflow-x: hidden; background-color: #f8fafc; }
+        
+        /* 🎨 Soft, airy background blobs for a modern light theme */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -5%; left: -5%; width: 500px; height: 500px; background: #dbeafe; border-radius: 40% 60% 70% 30%; } /* Soft Blue */
+        .blob-2 { bottom: 5%; right: -5%; width: 450px; height: 450px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Amber */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+        
+        /* 🪟 Clean Light Glassmorphism Cards */
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(0, 0, 0, 0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); }
+        .glass-card:hover { background: rgba(255, 255, 255, 1); border: 1px solid rgba(0, 0, 0, 0.1); transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
+        .glass-card::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent); transition: left 0.6s; }
+        .glass-card:hover::before { left: 100%; }
+        
+        /* 🖋️ Clean Text Gradients */
+        .text-gradient { background: linear-gradient(to right, #2563eb, #0891b2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } /* Deep Blue to Teal */
+        
+        .fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .delay-100 { animation-delay: 0.1s; } .delay-200 { animation-delay: 0.2s; } .delay-300 { animation-delay: 0.3s; }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        
+        /* 📸 Professional Light Gallery Controls */
+        .gallery-tab { cursor: pointer; padding: 10px 28px; border-radius: 99px; border: 1px solid transparent; transition: all 0.3s; background: #f1f5f9; color: #475569; font-size: 0.95rem; font-weight: 600; }
+        .gallery-tab.active { background: #2563eb; color: white; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); transform: scale(1.02); }
+        .gallery-tab:hover:not(.active) { background: #e2e8f0; color: #1e293b; }
+        .gallery-item { position: relative; overflow: hidden; border-radius: 1rem; height: 260px; cursor: pointer; border: 1px solid rgba(0,0,0,0.05); transition: all 0.4s ease; background: #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s ease; }
+        .gallery-item:hover img { transform: scale(1.08); }
+        .gallery-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.1)); opacity: 0; transition: opacity 0.3s; display: flex; align-items: end; padding: 24px; }
+        .gallery-item:hover .gallery-overlay { opacity: 1; }
+        
+        .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(15px); } to { opacity: 1; transform: translateX(0); } }
+        .animate-slide { animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        .nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: #334155; z-index: 20; border: 1px solid #e2e8f0; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .nav-prev { left: -60px; } .nav-next { right: -60px; }
+        .nav-arrow:hover { background: #2563eb; color: white; border-color: #2563eb; }
+        
+        .progress-bar { height: 3px; background: #e2e8f0; width: 100%; margin-top: 25px; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2563eb; width: 0%; transition: width 0.1s linear; }
+        
+        /* 🔔 Alert FAB */
+        .fab-container { position: fixed; bottom: 30px; right: 30px; z-index: 1000; }
+        .fab-btn { width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; cursor: pointer; border: none; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 8px 20px rgba(217, 119, 6, 0.3); position: relative; }
+        .fab-btn:hover { transform: scale(1.08); background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+        .notification-dot { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: #ef4444; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); display: none; }
+        
+        /* 📋 Popups (Light Mode) */
+        .announce-popup { position: absolute; bottom: 70px; right: 0; width: 340px; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); transform-origin: bottom right; transform: scale(0.95) translateY(10px); opacity: 0; transition: all 0.2s ease-out; pointer-events: none; }
+        .announce-popup.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+        .announce-item { padding: 12px 14px; border-left: 3px solid #f59e0b; background: #f8fafc; margin-bottom: 10px; border-radius: 0 6px 6px 0; transition: background 0.2s; }
+        .announce-item:hover { background: #f1f5f9; }
+        .announce-date { font-size: 10px; color: #64748b; display: block; margin-top: 6px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+    </style>
+</head>
+<body class="text-slate-800 relative min-h-screen flex flex-col">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="w-full fixed top-0 z-50 transition-all duration-300 backdrop-blur-md bg-white/90 border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0 cursor-pointer hover:opacity-80 transition flex items-center gap-3 group">
+                    <img src="logo.png" alt="L&T Valves Logo" class="h-10 w-auto object-contain brightness-0 opacity-80 group-hover:opacity-100 transition">
+                    <div class="h-5 w-px bg-slate-300"></div>
+                    <h1 class="text-lg font-extrabold tracking-widest text-slate-800 group-hover:text-blue-600 transition">KAIZEN</h1>
+                </div>
+                
+                <div class="hidden md:block"></div>
+                
+                <div class="-mr-2 flex md:hidden">
+                    <button type="button" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus:outline-none">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="hidden md:hidden bg-white border-b border-slate-200 shadow-lg" id="mobile-menu">
+            </div>
+    </nav>
+    
+    <main class="flex-grow flex flex-col items-center px-4 sm:px-6 lg:px-8 pt-28 pb-24">
+        <div class="w-full max-w-7xl mx-auto">
+            
+            <div class="text-center mb-16 fade-in-up delay-100">
+                <div class="inline-block mb-4 px-4 py-1.5 rounded-full border border-blue-200 bg-blue-50">
+                    <span class="text-blue-700 text-xs font-bold tracking-[0.15em] uppercase">Continual Improvement Management System</span>
+                </div>
+                <h1 class="text-3xl md:text-5xl font-extrabold mb-4 text-slate-900">Small Improvements <span class="text-gradient">Big Impact</span></h1>
+                <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600 leading-relaxed">Structured continuous improvement driven by teams to eliminate waste, enhance productivity, improve safety, and delight customers.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                
+                <a href="create_kaizen" class="group relative block glass-card p-8 cursor-pointer fade-in-up delay-200">
+                    <div class="absolute top-4 right-5 text-slate-300 opacity-20 text-5xl group-hover:opacity-40 transition duration-500"><i class="fa-solid fa-plus"></i></div>
+                    <div class="flex flex-col items-center">
+                        <div class="h-16 w-16 rounded-xl bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/30 mb-5 group-hover:scale-105 transition duration-300">
+                            <i class="fa-solid fa-pen-to-square text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">Create New</h3>
+                        <p class="text-slate-500 text-sm text-center group-hover:text-slate-700 transition">Submit a new improvement idea.</p>
+                        <div class="mt-5 flex items-center text-emerald-600 text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition">Initiate <i class="fa-solid fa-arrow-right ml-2"></i></div>
+                    </div>
+                </a>
+
+                <a href="view_kaizens" class="group relative block glass-card p-8 cursor-pointer fade-in-up delay-200" style="animation-delay: 0.15s">
+                    <div class="absolute top-4 right-5 text-slate-300 opacity-20 text-5xl group-hover:opacity-40 transition duration-500"><i class="fa-solid fa-list"></i></div>
+                    <div class="flex flex-col items-center">
+                        <div class="h-16 w-16 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 mb-5 group-hover:scale-105 transition duration-300">
+                            <i class="fa-solid fa-layer-group text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">View Records</h3>
+                        <p class="text-slate-500 text-sm text-center group-hover:text-slate-700 transition">Track status & historical data.</p>
+                        <div class="mt-5 flex items-center text-blue-600 text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition">Browse <i class="fa-solid fa-arrow-right ml-2"></i></div>
+                    </div>
+                </a>
+
+                <a href="analytics" class="group relative block glass-card p-8 cursor-pointer fade-in-up delay-200" style="animation-delay: 0.2s;">
+                    <div class="absolute top-4 right-5 text-slate-300 opacity-20 text-5xl group-hover:opacity-40 transition duration-500"><i class="fa-solid fa-chart-pie"></i></div>
+                    <div class="flex flex-col items-center">
+                        <div class="h-16 w-16 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30 mb-5 group-hover:scale-105 transition duration-300">
+                            <i class="fa-solid fa-chart-line text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">Analytics</h3>
+                        <p class="text-slate-500 text-sm text-center group-hover:text-slate-700 transition">View insights & system trends.</p>
+                        <div class="mt-5 flex items-center text-amber-600 text-xs font-bold uppercase tracking-wider group-hover:translate-x-1 transition">Analyze <i class="fa-solid fa-arrow-right ml-2"></i></div>
+                    </div>
+                </a>
+
+            </div>
+
+            <section id="gallery-section" class="mt-24 fade-in-up relative" style="animation-delay: 0.3s;">
+                <div class="flex flex-col items-center mb-10">
+                    <span class="text-blue-600 text-xs font-bold tracking-[0.15em] uppercase mb-2">Company Culture</span>
+                    <h2 class="text-3xl font-extrabold text-slate-900">Moments of <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">Excellence</span></h2>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-3 mb-8" id="galleryTabs">
+                    <div class="gallery-tab active" onclick="filterGallery('all', this)">All Moments</div>
+                </div>
+
+                <div class="relative group" onmouseenter="stopAutoPlay()" onmouseleave="startAutoPlay()">
+                    
+                    <button onclick="changePage(-1)" class="nav-arrow nav-prev md:flex hidden">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <button onclick="changePage(1)" class="nav-arrow nav-next md:flex hidden">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[500px]" id="galleryGrid">
+                        <div class="gallery-item skeleton"></div>
+                        <div class="gallery-item skeleton"></div>
+                        <div class="gallery-item skeleton"></div>
+                    </div>
+                    
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="galleryProgress"></div>
+                </div>
+
+                <div class="flex justify-center mt-6 space-x-2" id="galleryDots"></div>
+
+            </section>
+        </div>
+
+    </main>
+    <footer class="w-full py-8 text-center text-slate-500 text-xs fade-in-up delay-300"><p>&copy; 2026 L&T Valves. All rights reserved.</p></footer>
+
+    <div class="fab-container">
+        <div class="announce-popup" id="announcePopup">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                <h3 class="text-amber-600 font-bold uppercase tracking-wide text-xs flex items-center"><i class="fa-solid fa-bullhorn mr-2"></i> System Updates</h3>
+                <button onclick="toggleAnnouncements()" class="text-slate-400 hover:text-slate-800 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="announceList" class="max-h-64 overflow-y-auto custom-scrollbar">
+                <p class="text-xs text-slate-500 italic text-center py-4">Checking for updates...</p>
+            </div>
+        </div>
+        <div class="fab-btn" onclick="toggleAnnouncements()">
+            <i class="fa-solid fa-bell"></i>
+            <div class="notification-dot" id="notifyDot"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 🔒 IMMEDIATE SECURITY CHECK ---
+        if (!localStorage.getItem('currentUser') || !localStorage.getItem('jwt_token')) {
+            window.location.replace('login.html');
+        }
+
+        let allGalleryData = [];
+        let currentImages = []; 
+        let currentIndex = 0; 
+        const PAGE_SIZE = 6; 
+        let autoPlayInterval;
+        const AUTO_PLAY_MS = 5000;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGalleryData();
+            loadAnnouncements();
+        });
+
+        // --- ANNOUNCEMENT LOGIC ---
+        function toggleAnnouncements() {
+            document.getElementById('announcePopup').classList.toggle('open');
+            if(document.getElementById('announcePopup').classList.contains('open')) {
+                document.getElementById('notifyDot').style.display = 'none';
+            }
+        }
+
+        function loadAnnouncements() {
+            fetch(`${API_BASE_URL}/get-announcements`)
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('announceList');
+                if(data.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-4">No active announcements.</p>';
+                    return;
+                }
+                list.innerHTML = '';
+                data.sort((a,b) => b.id - a.id);
+                const now = new Date();
+                let activeCount = 0;
+                
+                data.forEach(item => {
+                    if(item.date && new Date(item.date) < now) return;
+                    activeCount++;
+                    
+                    let linkHtml = '';
+                    if (item.link) {
+                        let url = item.link;
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://' + url;
+                        }
+                        linkHtml = `<a href="${escapeHtml(url)}" target="_blank" class="block text-xs text-blue-600 hover:text-blue-500 font-semibold mt-1 truncate"><i class="fa-solid fa-link mr-1"></i> ${escapeHtml(item.link)}</a>`;
+                    }
+
+                    list.innerHTML += `
+                        <div class="announce-item">
+                            <p class="text-sm text-slate-700 leading-relaxed">${escapeHtml(item.message)}</p>
+                            ${linkHtml}
+                            <span class="announce-date">${item.date ? 'Valid Until: ' + new Date(item.date).toLocaleDateString() : 'System Update'}</span>
+                        </div>
+                    `;
+                });
+                
+                if(activeCount > 0) document.getElementById('notifyDot').style.display = 'block';
+                if(list.innerHTML === '') list.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-4">No active announcements.</p>';
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // --- GALLERY LOGIC ---
+        function loadGalleryData() {
+            fetch(`${API_BASE_URL}/get-gallery`)
+            .then(r => r.json())
+            .then(data => {
+                allGalleryData = data;
+                renderGalleryTabs();
+                filterGallery('all', document.querySelector('.gallery-tab.active'));
+            })
+            .catch(err => {
+                console.error("Gallery Error:", err);
+                document.getElementById('galleryGrid').innerHTML = '<div class="col-span-full h-48 flex items-center justify-center text-red-500 text-sm font-semibold">Unable to load gallery data.</div>';
+            });
+        }
+
+        function renderGalleryTabs() {
+            const container = document.getElementById('galleryTabs');
+            container.innerHTML = '<div class="gallery-tab active" onclick="filterGallery(\'all\', this)">All Moments</div>';
+            
+            allGalleryData.forEach(section => {
+                const tab = document.createElement('div');
+                tab.className = 'gallery-tab';
+                tab.innerText = section.title;
+                tab.onclick = () => filterGallery(section.id, tab);
+                container.appendChild(tab);
+            });
+        }
+
+        function filterGallery(filterId, btnElement) {
+            document.querySelectorAll('.gallery-tab').forEach(t => t.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+
+            currentIndex = 0;
+            currentImages = [];
+
+            if (filterId === 'all') {
+                let tempArrays = allGalleryData.map(s => s.images.map(img => ({...img, sectionTitle: s.title})));
+                let maxLength = Math.max(...tempArrays.map(a => a.length));
+                for(let i=0; i<maxLength; i++) {
+                    tempArrays.forEach(arr => {
+                        if(arr[i]) currentImages.push(arr[i]);
+                    });
+                }
+            } else {
+                const section = allGalleryData.find(s => s.id == filterId);
+                if (section && section.images) {
+                    currentImages = section.images.map(img => ({ ...img, sectionTitle: section.title }));
+                }
+            }
+
+            renderGrid();
+            startAutoPlay();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+            
+            grid.classList.remove('animate-slide');
+            void grid.offsetWidth; 
+            grid.classList.add('animate-slide');
+
+            if (currentImages.length === 0) {
+                grid.innerHTML = '<div class="col-span-full h-full flex items-center justify-center text-slate-500 italic text-sm">No photos found in this category.</div>';
+                updateDots();
+                return;
+            }
+
+            const pageItems = currentImages.slice(currentIndex, currentIndex + PAGE_SIZE);
+
+            pageItems.forEach((img, index) => {
+                const card = document.createElement('div');
+                card.className = 'gallery-item';
+                
+                let safeUrl = img.url;
+                if(safeUrl && safeUrl.includes('localhost:3000')) {
+                    safeUrl = safeUrl.replace('http://localhost:3000', API_BASE_URL);
+                }
+
+                card.innerHTML = `
+                    <img src="${safeUrl}" loading="lazy" alt="Gallery Image">
+                    <div class="gallery-overlay">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-blue-300 tracking-wider mb-1 block">${escapeHtml(img.sectionTitle)}</span>
+                            <p class="text-sm font-medium text-white leading-tight">${escapeHtml(img.caption || '')}</p>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            updateDots();
+        }
+
+        function changePage(direction) {
+            const total = currentImages.length;
+            if(total <= PAGE_SIZE) return; 
+            currentIndex += direction * PAGE_SIZE;
+            if (currentIndex >= total) currentIndex = 0;
+            if (currentIndex < 0) currentIndex = Math.floor((total - 1) / PAGE_SIZE) * PAGE_SIZE; 
+            renderGrid();
+            resetProgressBar();
+        }
+
+        function startAutoPlay() {
+            stopAutoPlay();
+            if(currentImages.length > PAGE_SIZE) {
+                resetProgressBar();
+                autoPlayInterval = setInterval(() => { changePage(1); }, AUTO_PLAY_MS);
+                const bar = document.getElementById('galleryProgress');
+                bar.style.transition = `width ${AUTO_PLAY_MS}ms linear`;
+                setTimeout(() => { bar.style.width = '100%'; }, 50);
+            } else {
+                document.getElementById('galleryProgress').style.width = '0%';
+            }
+        }
+
+        function stopAutoPlay() {
+            if(autoPlayInterval) clearInterval(autoPlayInterval);
+            const bar = document.getElementById('galleryProgress');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+        }
+        
+        function resetProgressBar() {
+            const bar = document.getElementById('galleryProgress');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+            void bar.offsetWidth;
+            if(currentImages.length > PAGE_SIZE) {
+                 bar.style.transition = `width ${AUTO_PLAY_MS}ms linear`;
+                 bar.style.width = '100%';
+            }
+        }
+
+        function updateDots() {
+            const container = document.getElementById('galleryDots');
+            container.innerHTML = '';
+            const totalPages = Math.ceil(currentImages.length / PAGE_SIZE);
+            if(totalPages <= 1) return;
+            const activePage = Math.floor(currentIndex / PAGE_SIZE);
+            for(let i=0; i<totalPages; i++) {
+                const dot = document.createElement('div');
+                dot.className = `w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${i === activePage ? 'bg-blue-600 w-6' : 'bg-slate-300'}`;
+                dot.onclick = () => { currentIndex = i * PAGE_SIZE; renderGrid(); startAutoPlay(); };
+                container.appendChild(dot);
+            }
+        }
+    </script>
+</body>
+</html>

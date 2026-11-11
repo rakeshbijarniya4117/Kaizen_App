@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOK Dashboard | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #ffe4e6; border-radius: 40% 60% 70% 30%; } /* Soft Rose */
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Amber */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+
+        /* 🪟 Light Glass Container */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.05);
+        }
+        
+        /* 📋 Tabs (Light Mode) */
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .tab-btn:hover { color: #1e293b; background: rgba(0,0,0,0.02); }
+        .tab-btn.active {
+            color: #e11d48; /* Rose-600 */
+            border-bottom-color: #e11d48;
+            background: #ffffff;
+        }
+        
+        /* Count Badge */
+        .count-badge {
+            margin-left: 8px;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active .count-badge { background: #e11d48; color: #ffffff; }
+
+        /* Status Badges */
+        .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .status-pending { background: #fefce8; color: #d97706; border: 1px solid #fde047; } /* Amber */
+        .status-resubmit { background: #f3e8ff; color: #7c3aed; border: 1px solid #e9d5ff; } /* Purple */
+
+        /* 📊 Table Styles (Light Mode) */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th { position: relative; text-align: left; white-space: nowrap; }
+
+        /* 🔍 Search Popup Styles (Light) */
+        .search-trigger { margin-left: 8px; padding: 4px; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+        .search-trigger:hover, .search-trigger.active { color: #e11d48; background: #ffe4e6; }
+        .search-popup { position: absolute; top: 100%; left: 0; z-index: 60; background: #ffffff; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 180px; display: none; margin-top: 5px; animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .search-popup.show { display: block; }
+        .popup-input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
+        .popup-input:focus { border-color: #e11d48; box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.1); }
+        @keyframes popIn { from { opacity: 0; transform: translateY(-5px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+</head>
+<body class="min-h-screen relative text-slate-800">
+
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-4">
+            <a href="index" class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-rose-50 border border-slate-200 transition group">
+                <i class="fa-solid fa-arrow-left text-slate-500 group-hover:text-rose-600 transition"></i>
+            </a>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-wide text-slate-900">HOK <span class="text-rose-600">Dashboard</span></h1>
+                <p class="text-xs text-slate-500 font-medium">Head of Kaizen Console</p>
+            </div>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center font-bold text-white shadow-md">H</div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 h-[calc(100vh-100px)] flex flex-col">
+        
+        <div class="flex justify-between items-end mb-6">
+            <div class="flex gap-4 border-b border-slate-200 w-full">
+                <button class="tab-btn active" onclick="filterData('Pending', this)">
+                    <i class="fa-regular fa-clock mr-2"></i> Pending Approval 
+                    <span id="countPending" class="count-badge">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterData('Resubmitted', this)">
+                    <i class="fa-solid fa-rotate-right mr-2"></i> Resubmitted 
+                    <span id="countResubmitted" class="count-badge">0</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="glass-panel overflow-hidden flex-1 flex flex-col bg-white">
+            <div class="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
+                <table class="w-full text-left border-collapse" id="hokTable">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>ID</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(0, this)"></i></div>
+                                <div class="search-popup" id="popup-0"><input type="text" class="popup-input" placeholder="Filter ID..." onkeyup="applyFilters(0)"></div>
+                            </th>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>Date</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(1, this)"></i></div>
+                                <div class="search-popup" id="popup-1"><input type="text" class="popup-input" placeholder="Filter Date..." onkeyup="applyFilters(1)"></div>
+                            </th>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>Leader</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(2, this)"></i></div>
+                                <div class="search-popup" id="popup-2"><input type="text" class="popup-input" placeholder="Filter Leader..." onkeyup="applyFilters(2)"></div>
+                            </th>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>Theme</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(3, this)"></i></div>
+                                <div class="search-popup" id="popup-3"><input type="text" class="popup-input" placeholder="Filter Theme..." onkeyup="applyFilters(3)"></div>
+                            </th>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>Coord Reward</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(4, this)"></i></div>
+                                <div class="search-popup" id="popup-4"><input type="text" class="popup-input" placeholder="Filter Reward..." onkeyup="applyFilters(4)"></div>
+                            </th>
+                            <th class="p-4 font-bold border-b border-slate-200">
+                                <div class="flex items-center"><span>Status</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(5, this)"></i></div>
+                                <div class="search-popup" id="popup-5"><input type="text" class="popup-input" placeholder="Filter Status..." onkeyup="applyFilters(5)"></div>
+                            </th>
+                            <th class="p-4 text-center font-bold border-b border-slate-200">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-sm text-slate-700 bg-white">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 🔒 ENTERPRISE SECURITY FIXES ---
+        
+        // 1. Better Guard to prevent back-button loops
+        if (!currentUser || !currentUser.is_hok) {
+            alert("Access Denied: HOK Only");
+            window.location.replace("index.html");
+        }
+
+        // 2. XSS Sanitizer for rendering DB data
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        let allKaizens = [];
+
+        document.addEventListener('DOMContentLoaded', fetchData);
+
+        async function fetchData() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium animate-pulse">Loading...</td></tr>';
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/get-kaizens`);
+                
+                // 3. Prevent crashing if the token is invalid
+                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+                
+                allKaizens = await res.json();
+                
+                // SORTING LOGIC: Based on Coordinator Submission (Latest First)
+                allKaizens.sort((a, b) => {
+                    const dateA = new Date(a.coordinator_action_date || a.date);
+                    const dateB = new Date(b.coordinator_action_date || b.date);
+                    return dateB - dateA;
+                });
+
+                updateCounts();
+                filterData('Pending', document.querySelector('.tab-btn.active')); // Default load
+
+            } catch(e) { 
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-rose-500 font-bold">Error loading data. Check connection.</td></tr>';
+            }
+        }
+
+        function updateCounts() {
+            // Count for Pending (Fresh items only, NO subStatus)
+            const pendingCount = allKaizens.filter(k => 
+                k.status === 'Waiting for Final Approval' && (!k.subStatus || k.subStatus === "")
+            ).length;
+
+            // Count for Resubmitted (Explicitly marked Resubmitted)
+            const resubmittedCount = allKaizens.filter(k => 
+                k.status === 'Waiting for Final Approval' && k.subStatus === 'Resubmitted to HOK'
+            ).length;
+
+            document.getElementById('countPending').innerText = pendingCount;
+            document.getElementById('countResubmitted').innerText = resubmittedCount;
+        }
+
+        function filterData(tab, btn) {
+            // Update Tab UI
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const filtered = allKaizens.filter(k => {
+                const s = k.status;
+                const sub = k.subStatus;
+
+                // MAIN CONDITION: Must be waiting for HOK
+                if (s !== 'Waiting for Final Approval') return false;
+
+                if (tab === 'Pending') {
+                    // Show items ONLY if they have NO subStatus (Fresh)
+                    return !sub || sub === "";
+                } 
+                else if (tab === 'Resubmitted') {
+                    // Show ONLY items marked as Resubmitted
+                    return sub === 'Resubmitted to HOK';
+                }
+                return false;
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-12 text-center text-slate-500 italic font-medium">No records found.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition group";
+                
+                let dateStr = item.date ? new Date(item.date).toLocaleDateString() : '-';
+                
+                let badgeClass = "status-pending";
+                let badgeText = "Pending Approval"; 
+
+                if (item.subStatus === 'Resubmitted to HOK') {
+                    badgeClass = "status-resubmit";
+                    badgeText = "Resubmitted";
+                }
+
+                // 🔒 PRODUCTION FIX: Added escapeHtml to text generated by users
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-rose-600 font-bold">KZN-${item.id}</td>
+                    <td class="p-4 text-slate-500 font-medium">${dateStr}</td>
+                    <td class="p-4 text-slate-800 font-bold">${escapeHtml(item.leader_name)}</td>
+                    
+                    <td class="p-4">
+                        <div class="truncate max-w-[200px] cursor-help font-medium" title="${escapeHtml(item.theme || '')}">${escapeHtml(item.theme || '-')}</div>
+                    </td>
+
+                    <td class="p-4 font-mono text-emerald-600 font-bold">₹ ${item.reward_amount || 0}</td>
+                    <td class="p-4"><span class="status-badge ${badgeClass}">${badgeText}</span></td>
+                    <td class="p-4 text-center">
+                        <a href="hok_review?id=${item.id}" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 no-underline inline-flex">
+                            Review <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- FILTER LOGIC ---
+        function toggleSearch(index, icon) {
+            document.querySelectorAll('.search-popup').forEach((p, i) => { if(i !== index) p.classList.remove('show'); });
+            document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            const popup = document.getElementById(`popup-${index}`);
+            popup.classList.toggle('show');
+            icon.classList.toggle('active');
+            if(popup.classList.contains('show')) popup.querySelector('input').focus();
+        }
+
+        function applyFilters(colIndex) {
+            const input = document.getElementById(`popup-${colIndex}`).querySelector('input');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("hokTable");
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) { 
+                const td = tr[i].getElementsByTagName("td")[colIndex];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        // Close popup when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('th')) {
+                document.querySelectorAll('.search-popup').forEach(p => p.classList.remove('show'));
+                document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            }
+        });
+    </script>
+</body>
+</html>

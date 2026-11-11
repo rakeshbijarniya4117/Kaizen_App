@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script> 
+    <meta charset="UTF-8">
+    <title>Self Evaluation</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #dbeafe; border-radius: 40% 60% 70% 30%; }
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(30px, 50px) rotate(10deg); } }
+
+        /* 🪟 Light Glass Panel */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.05); 
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        /* 📋 Option Cards (Light Theme) */
+        .option-card { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 1rem; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            position: relative; 
+            overflow: hidden;
+            color: #475569;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .option-card:hover { 
+            background: #f8fafc; 
+            transform: translateY(-3px); 
+            border-color: #cbd5e1; 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.05); 
+        }
+        .option-card.selected { 
+            background: #2563eb; 
+            border-color: #2563eb; 
+            color: white; 
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25); 
+        }
+        
+        /* Badges inside Option Cards */
+        .pts-badge {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        .option-card.selected .pts-badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* 🏁 Footer Score Panel */
+        .score-panel { 
+            background: rgba(255, 255, 255, 0.98); 
+            backdrop-filter: blur(20px); 
+            border-top: 1px solid #e2e8f0; 
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05); 
+        }
+
+        /* ✨ Animations */
+        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(30px); }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        
+        .pulse-text { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
+</head>
+<body class="min-h-screen relative pb-40">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <a href="create_kaizen" class="flex items-center text-slate-500 hover:text-blue-600 font-medium transition group mr-4">
+            <i class="fa-solid fa-arrow-left mr-2 group-hover:-translate-x-1 transition"></i> Back
+        </a>
+        <h1 class="text-xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">SELF EVALUATION</h1>
+        <div class="text-sm text-slate-500 font-medium">Step 2 of 2</div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 mt-8 space-y-8">
+        
+        <div class="glass-panel p-6 flex justify-between items-center slide-up">
+            <div>
+                <h2 class="text-lg font-bold text-slate-800">Focus Area Multiplier</h2>
+                <p class="text-xs font-medium text-slate-500">Applied based on selected Focus Area.</p>
+            </div>
+            <div class="bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 shadow-inner">
+                <input type="text" id="multiplier" readonly class="bg-transparent text-3xl font-mono font-bold text-blue-700 focus:outline-none w-20 text-center" value="1.0">
+            </div>
+        </div>
+
+        <div id="dynamicQuestions" class="space-y-6">
+            <p class="text-center text-slate-500 font-medium animate-pulse mt-10">Loading criteria...</p>
+        </div>
+
+    </div>
+
+    <div class="fixed bottom-0 left-0 w-full score-panel z-40 p-4 slide-up">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <div class="text-center"><p class="text-xs text-slate-500 font-bold uppercase">Base</p><p id="baseScore" class="text-xl font-bold text-slate-800">0</p></div>
+                <div class="text-slate-400 font-bold">x</div>
+                <div class="text-center"><p class="text-xs text-slate-500 font-bold uppercase">Mult</p><p id="multiplierDisplay" class="text-xl font-bold text-blue-600">1.0</p></div>
+                <div class="text-center bg-blue-600 rounded-xl px-6 py-2 shadow-lg ml-4 border border-blue-700"><p class="text-xs text-blue-100 uppercase font-bold tracking-wider">Total Score</p><p id="finalScore" class="text-3xl font-bold text-white pulse-text">0</p></div>
+            </div>
+            <button type="button" id="submitBtn" onclick="submitFinal()" class="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition transform hover:-translate-y-1 hover:shadow-xl flex items-center disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-700">
+                Submit & Finish <i class="fa-solid fa-paper-plane ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentScores = {}; 
+
+        window.onload = function() {
+            // --- DATA GUARD (Prevent Direct Access) ---
+            const rawData = localStorage.getItem('tempKaizenData');
+            // If data is null OR empty object, redirect
+            if (!rawData || Object.keys(JSON.parse(rawData)).length === 0) {
+                alert("Restricted Access: Please fill out the Kaizen details first.");
+                window.location.href = "/create_kaizen";
+                return; // Stop execution
+            }
+            // ------------------------------------------
+
+            try {
+                const prev = JSON.parse(rawData);
+                if(prev.focusMultiplier) {
+                    document.getElementById('multiplier').value = prev.focusMultiplier;
+                    document.getElementById('multiplierDisplay').innerText = prev.focusMultiplier;
+                }
+            } catch(e) { console.error("Data Error", e); }
+
+            fetch(`${API_BASE_URL}/get-criteria?type=self`)
+                .then(response => response.json())
+                .then(data => {
+                    renderDynamicQuestions(data);
+                })
+                .catch(err => {
+                    console.error("Error fetching criteria:", err);
+                    document.getElementById('dynamicQuestions').innerHTML = `<p class="text-rose-500 font-bold text-center">Failed to load criteria. Check server.</p>`;
+                });
+        };
+
+        function renderDynamicQuestions(criteria) {
+            const container = document.getElementById('dynamicQuestions');
+            container.innerHTML = ''; 
+
+            if(!criteria || criteria.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 text-center font-medium">No evaluation criteria defined.</p>`;
+                return;
+            }
+
+            criteria.forEach((q, index) => {
+                currentScores[q.key] = 0;
+
+                let optionsHtml = '';
+                q.options.forEach(opt => {
+                    // Updated HTML generated for light theme
+                    optionsHtml += `
+                        <div class="option-card p-4" onclick="selectOption('${q.key}', ${opt.points}, this)">
+                            <div class="flex justify-between items-center text-sm font-bold">
+                                <span>${opt.label}</span>
+                                <span class="pts-badge px-2 py-1 rounded text-xs">${opt.points} pts</span>
+                            </div>
+                        </div>`;
+                });
+
+                const cardHtml = `
+                    <div class="glass-panel p-6 slide-up" style="animation-delay: ${index * 0.1}s">
+                        <h3 class="text-blue-600 font-bold mb-4 uppercase text-sm tracking-wider">${q.label}</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="row-${q.key}">
+                            ${optionsHtml}
+                        </div>
+                    </div>`;
+                
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        function selectOption(key, points, element) {
+            currentScores[key] = points;
+            document.querySelectorAll(`#row-${key} .option-card`).forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            calculateScore();
+        }
+
+        function calculateScore() {
+            let mult = parseFloat(document.getElementById('multiplier').value);
+            let base = Object.values(currentScores).reduce((a, b) => a + b, 0);
+            document.getElementById('baseScore').innerText = base;
+            document.getElementById('finalScore').innerText = Math.round(base * mult);
+        }
+
+        // 🔒 BULLETPROOF SUBMISSION ENGINE
+        async function submitFinal() {
+            try {
+                // 1. Validation Check
+                if(Object.values(currentScores).some(pts => pts === 0)) {
+                    alert("Please answer all evaluation questions before submitting.");
+                    return;
+                }
+
+                // 2. Lock UI
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = true;
+                btn.innerHTML = 'Submitting... <i class="fa-solid fa-spinner fa-spin ml-2"></i>';
+
+                // 3. Prepare Data
+                const prev = JSON.parse(localStorage.getItem('tempKaizenData') || "{}");
+                
+                const finalRecord = {
+                    // 1. This grabs ALL the 20+ new fields exactly as they are
+                    ...prev, 
+                    
+                    // 2. We MANUALLY map the old fields so the backend understands them
+                    created_by: prev.createdBy,
+                    leader_name: prev.leaderName,
+                    plant: prev.plant,
+                    department: prev.dept,
+                    product_group: prev.productGroup,
+                    category: prev.category,
+                    focus_area: prev.focusArea,
+                    process_name: prev.processName,
+                    kaizen_type: prev.kaizenType,
+                    date: prev.date,
+                    team_members: prev.teamMembers,
+                    theme: prev.theme,
+                    before_description: prev.beforeDesc,
+                    after_description: prev.afterDesc,
+                    before_file_data: prev.beforeFile, 
+                    before_file_name: prev.beforeFileName,
+                    after_file_data: prev.afterFile, 
+                    after_file_name: prev.afterFileName,
+                    expenditure_details: prev.expDetails,
+                    direct_savings_details: prev.directDetails,
+                    indirect_savings_details: prev.indirectDetails,
+                    specific_location: prev.specificLocation || null,
+                    
+                    // The backend explicitly looks inside this 'financials' object for the old calc logic
+                    financials: {
+                        expenditure_cost: prev.expenditure,
+                        direct_savings: prev.directSaving,
+                        indirect_savings: prev.indirectSaving,
+                        net_gain: prev.totalGain
+                    },
+
+                    // 3. Add the Evaluation Scores
+                    evaluation_scores: {
+                        scores: currentScores,
+                        multiplier: document.getElementById('multiplier').value,
+                        final_total_score: document.getElementById('finalScore').innerText
+                    },
+                    status: "Waiting for HOD Evaluation"
+                };
+
+                // 4. Send to Server
+                const token = localStorage.getItem('jwt_token'); 
+                
+                const response = await fetch(`${API_BASE_URL}/save-kaizen`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify(finalRecord)
+                });
+
+
+                // Catch Hard Network Errors before parsing JSON
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server Error (${response.status}): The server rejected the request. It may be too large or your server is offline.`);
+                }
+
+                // Parse standard responses
+                const res = await response.json();
+
+                // 5. Handle DB Response
+                if (res.success) { 
+                    localStorage.removeItem('tempKaizenData'); // 100% Guaranteed Wipe
+                    alert("Kaizen Submitted Successfully!");
+                    
+                    // Force redirect after clicking OK
+                    setTimeout(() => {
+                        window.location.href = "/my_kaizens";
+                    }, 100);
+                } else { 
+                    throw new Error(res.message || "Database rejected the save.");
+                }
+
+            } catch (err) {
+                console.error("Submission Error:", err);
+                alert("SUBMISSION FAILED!\n\n" + err.message + "\n\n(Your data was kept safe in the form. Please fix the error and try again).");
+                
+                // Unlock UI so they can try again
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = false;
+                btn.innerHTML = 'Submit & Finish <i class="fa-solid fa-paper-plane ml-2"></i>';
+            }
+        }
+    </script>
+</body>
+</html>

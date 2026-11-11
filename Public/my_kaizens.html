@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Kaizens | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <link rel="stylesheet" href="leaflet/leaflet.css">
+    <script src="jspdf.umd.min.js"></script>
+    <script src="jspdf.plugin.autotable.min.js"></script>
+    <script src="navbar_loader.js"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #dbeafe; border-radius: 40% 60% 70% 30%; } /* Soft Blue */
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #cffafe; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Cyan */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+
+        /* 🪟 Light Glass Container */
+        .glass-container { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); overflow: visible; }
+
+        /* 📊 Table Styles (Light Mode) */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th { text-align: left; padding: 1.5rem 1rem; color: #64748b; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 40; white-space: nowrap; }
+        tr td { border-bottom: 1px solid #f1f5f9; transition: all 0.3s; }
+        tr:hover td { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+        td { padding: 1.25rem 1rem; color: #334155; font-size: 0.9rem; vertical-align: middle; position: relative; }
+
+        /* 🔍 Search Popup Styles (Light) */
+        .search-trigger { margin-left: 8px; padding: 4px; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+        .search-trigger:hover, .search-trigger.active { color: #2563eb; background: #eff6ff; }
+        .search-popup { position: absolute; top: 70%; left: 0; z-index: 60; background: #ffffff; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 180px; display: none; animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .search-popup.show { display: block; }
+        .popup-input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; outline: none; transition: border-color 0.2s;}
+        .popup-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        @keyframes popIn { from { opacity: 0; transform: translateY(-5px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* ℹ️ Global Tooltip (Light) */
+        #global-tooltip { position: fixed; z-index: 9999; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); pointer-events: none; opacity: 0; transition: opacity 0.2s, transform 0.2s; transform: scale(0.95); display: none; }
+        #global-tooltip.active { display: block; opacity: 1; transform: scale(1); }
+
+        .tt-label { font-size: 0.65rem; text-transform: uppercase; color: #64748b; font-weight: 800; display: block; margin-bottom: 2px; }
+        .tt-value { font-size: 0.85rem; color: #1e293b; font-weight: 600; line-height: 1.3; }
+        .tt-row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+
+        .tracker-step { display: flex; align-items: flex-start; position: relative; padding-bottom: 20px; }
+        .tracker-step:last-child { padding-bottom: 0; }
+        .tracker-icon { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; margin-right: 12px; flex-shrink: 0; z-index: 10; border: 2px solid #ffffff; }
+        .tracker-line { position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: #e2e8f0; z-index: 0; }
+        .tracker-step:last-child .tracker-line { display: none; }
+        
+        .st-done { background: #10b981; color: white; border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+        .st-current { background: #f59e0b; color: white; border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); animation: pulse-ring 2s infinite; }
+        .st-pending { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+        .st-rejected { background: #ef4444; color: white; border-color: #ef4444; }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }
+
+        .glass-pill { background: #ffffff; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; color: #475569; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .badge { padding: 6px 12px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; display: inline-flex; align-items: center; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s; cursor: help; }
+        .action-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #ffffff; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: pointer; color: #64748b; }
+        .action-btn:hover { background: #2563eb; border-color: #2563eb; color: white; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(37,99,235,0.2); }
+        .table-row-anim { opacity: 0; animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .date-picker { background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; color-scheme: light; transition: border-color 0.2s; }
+        .date-picker:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); outline: none; }
+        .animate-gradient-text { background-size: 200% auto; animation: shine 4s linear infinite; }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        /* Map Modal Styles (Light) */
+        #viewMapModal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 10000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        #viewMapModal.show { display: flex; opacity: 1; }
+        .map-modal-content { width: 90%; max-width: 800px; background: #ffffff; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; overflow: hidden; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #viewMapModal.show .map-modal-content { transform: scale(1); }
+        #viewMapContainer { height: 500px; width: 100%; }
+        .leaflet-marker-icon { animation: dropPin 0.5s ease-out; }
+        @keyframes dropPin { 0% { transform: translateY(-20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="min-h-screen relative text-slate-800">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-50 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm bg-white/90">
+        <a href="index" class="text-slate-500 hover:text-blue-600 font-medium transition flex items-center group">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mr-3 group-hover:bg-blue-50 transition border border-slate-200 shrink-0">
+                <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-1 transition"></i>
+            </div>
+            <span class="font-bold tracking-wide">Dashboard</span>
+        </a>
+        <h1 class="text-2xl font-extrabold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-600 animate-gradient-text">MY<span class="text-slate-800 font-light">KAIZEN</span></h1>
+        <div class="flex items-center space-x-3">
+            <a href="create_kaizen" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 flex items-center border border-blue-700"><i class="fa-solid fa-plus mr-2"></i> Create New</a>
+        </div>
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto px-6 py-10">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 slide-up">
+            <div class="w-full md:w-auto text-left">
+                <h2 class="text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">My Kaizen</h2>
+                <div class="flex items-center space-x-4">
+                    <p class="text-slate-500 text-sm font-medium">Kaizens you lead or participate in.</p>
+                    <div class="h-1.5 w-1.5 bg-slate-300 rounded-full"></div>
+                    <div class="flex items-center space-x-2 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-200">
+                        <span id="recordCount" class="text-blue-700 text-sm font-bold">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full md:w-auto flex items-center space-x-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider shadow-md"><i class="fa-regular fa-calendar mr-2"></i>Filter</div>
+                <input type="date" id="startDate" class="date-picker border-none focus:ring-0 w-32" onchange="applyFilters()">
+                <span class="text-slate-400"><i class="fa-solid fa-arrow-right-long"></i></span>
+                <input type="date" id="endDate" class="date-picker border-none focus:ring-0 w-32" onchange="applyFilters()">
+                <button onclick="clearDates()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-500 hover:text-white transition-all duration-300 border border-slate-200"><i class="fa-solid fa-rotate-left"></i></button>
+            </div>
+        </div>
+
+        <div class="glass-container">
+            <div class="overflow-x-auto overflow-y-visible custom-scrollbar pb-16" style="min-height: 500px;">
+                <table class="w-full text-left" id="kaizenTable">
+                    <thead>
+                        <tr>
+                            <th class="w-24"><div class="flex items-center"><span>ID</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(0, this)"></i></div><div class="search-popup" id="popup-0"><input type="text" class="popup-input" placeholder="Search ID..." onkeyup="applyFilters(0)"></div></th>
+                            <th><div class="flex items-center"><span>Plant</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(1, this)"></i></div><div class="search-popup" id="popup-1"><input type="text" class="popup-input" placeholder="Filter Plant..." onkeyup="applyFilters(1)"></div></th>
+                            <th><div class="flex items-center"><span>Leader</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(2, this)"></i></div><div class="search-popup" id="popup-2"><input type="text" class="popup-input" placeholder="Filter Name..." onkeyup="applyFilters(2)"></div></th>
+                            <th><div class="flex items-center"><span>Group</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(3, this)"></i></div><div class="search-popup" id="popup-3"><input type="text" class="popup-input" placeholder="Filter Group..." onkeyup="applyFilters(3)"></div></th>
+                            <th><div class="flex items-center"><span>Dept</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(4, this)"></i></div><div class="search-popup" id="popup-4"><input type="text" class="popup-input" placeholder="Filter Dept..." onkeyup="applyFilters(4)"></div></th>
+                            <th class="w-24"><div class="flex items-center"><span>Score</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(5, this)"></i></div><div class="search-popup" id="popup-5"><input type="text" class="popup-input" placeholder="Min Score..." onkeyup="applyFilters(5)"></div></th>
+                            <th><div class="flex items-center"><span>Status</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(6, this)"></i></div><div class="search-popup" id="popup-6"><input type="text" class="popup-input" placeholder="Filter Status..." onkeyup="applyFilters(6)"></div></th>
+                            <th><div class="flex items-center"><span>Date</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(7, this)"></i></div><div class="search-popup" id="popup-7"><input type="text" class="popup-input" placeholder="Filter Date..." onkeyup="applyFilters(7)"></div></th>
+                            <th class="text-center w-28">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="global-tooltip"></div>
+
+    <div id="viewMapModal">
+        <div class="map-modal-content relative">
+            <div class="bg-white px-4 py-4 flex justify-between items-center border-b border-slate-200">
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center">
+                    <i class="fa-solid fa-map-location-dot mr-2 text-blue-600"></i> Plant Location View
+                </h3>
+                <button onclick="closeViewMap()" class="text-slate-400 hover:text-slate-800 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="viewMapContainer" style="height: 500px; width: 100%;"></div>
+            <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
+                <span id="viewMapLabel" class="text-xs text-slate-600 font-mono font-semibold"></span>
+                <span id="viewMapCoords" class="text-xs text-blue-600 font-mono font-bold"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="leaflet/leaflet.js"></script>
+    <script>
+        // AUTHENTICATION HANDLED BY auth.js
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+
+        // --- 🔒 PRODUCTION XSS SANITIZER ---
+        function escapeHtml(text) {
+            if (!text && text !== 0) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // 🔒 PRODUCTION FIX: Bulletproof Fetch Wrapper
+        async function fetchSecure(endpoint) {
+            const res = await fetch(`${API_BASE_URL}${endpoint}`);
+            if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+            return res.json();
+        }
+
+        let allData = [];
+        let plantObjects = []; 
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if(user) {
+                try {
+                    // Fetch Settings to get Plant Coordinates
+                    const data = await fetchSecure('/get-settings');
+                    plantObjects = data.find(s => s.type === 'plant')?.values || [];
+                    window.plantObjects = plantObjects; 
+                    
+                    fetchData();
+                } catch(e) {
+                    console.error("Failed to load settings:", e);
+                }
+            }
+        });
+
+        // --- GLOBAL TOOLTIP LOGIC ---
+        const tooltipEl = document.getElementById('global-tooltip');
+        
+        function positionTooltip(element) {
+            const rect = element.getBoundingClientRect();
+            tooltipEl.style.top = (rect.bottom + 10) + 'px';
+            tooltipEl.style.left = (rect.left + 20) + 'px';
+            if (rect.bottom + 300 > window.innerHeight) { tooltipEl.style.top = (rect.top - 200) + 'px'; }
+            tooltipEl.classList.add('active');
+        }
+        function hideTooltip() { tooltipEl.classList.remove('active'); }
+
+        // 1. Leader/Info Tooltip
+        function showTooltip(element, data) {
+            let teamHTML = '';
+            if(data.kaizen_type === 'Team' && data.team_members) {
+                teamHTML = `<div class="tt-row flex-col"><span class="tt-label text-blue-600 mb-1">Team Members</span><p class="tt-value text-xs text-slate-600 leading-relaxed">${escapeHtml(data.team_members)}</p></div>`;
+            }
+            tooltipEl.innerHTML = `
+                <div class="tt-row">
+                    <div><span class="tt-label">Leader ID</span><p class="tt-value font-mono text-blue-700">${escapeHtml(data.idOnly)}</p></div>
+                    <div class="text-right"><span class="tt-label">Created By</span><p class="tt-value text-slate-600 text-xs">${escapeHtml(data.createdBy)}</p></div>
+                </div>
+                ${teamHTML}
+                <div class="tt-row">
+                    <div><span class="tt-label">Category</span><p class="tt-value">${escapeHtml(data.category || '-')}</p></div>
+                    <div class="text-right"><span class="tt-label">Focus Area</span><p class="tt-value">${escapeHtml(data.focus_area || '-')}</p></div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-slate-100">
+                    <span class="tt-label">Process Name</span><p class="tt-value text-slate-800 font-semibold">${escapeHtml(data.process_name || '-')}</p>
+                </div>
+            `;
+            positionTooltip(element);
+        }
+
+        // 2. Score Breakdown Tooltip
+        function showScoreTooltip(element, scoreData) {
+            let rows = `<div class="tt-row"><span class="tt-label text-slate-500">Self Score</span><span class="tt-value text-blue-600 font-bold">${scoreData.self || '0'}</span></div>`;
+            if(scoreData.showHod) rows += `<div class="tt-row"><span class="tt-label text-slate-500">HOD Score</span><span class="tt-value text-amber-600 font-bold">${scoreData.hod || '0'}</span></div>`;
+            if(scoreData.showComm) rows += `<div class="tt-row border-b border-slate-100 pb-2"><span class="tt-label text-slate-500">Committee</span><span class="tt-value text-purple-600 font-bold">${scoreData.comm || '0'}</span></div>`;
+            rows += `<div class="tt-row pt-1"><span class="tt-label text-slate-800 font-bold">Total Score</span><span class="tt-value text-emerald-600 font-extrabold text-lg">${scoreData.total}</span></div>`;
+            tooltipEl.innerHTML = `<div class="p-1"><h4 class="text-xs font-bold text-slate-800 mb-2 uppercase tracking-wider border-b border-slate-200 pb-1">Score Breakdown</h4>${rows}</div>`;
+            positionTooltip(element);
+        }
+
+        // 3. Status Tracker Tooltip
+        function showStatusTooltip(element, status) {
+            const steps = [
+                { label: "Submitted", state: "st-done", icon: '<i class="fa-solid fa-check"></i>' },
+                { label: "HOD Review", state: "st-pending", icon: '<i class="fa-solid fa-hourglass"></i>' },
+                { label: "Committee", state: "st-pending", icon: '<i class="fa-solid fa-users"></i>' },
+                { label: "Final Approval", state: "st-pending", icon: '<i class="fa-solid fa-stamp"></i>' },
+                { label: "Completion", state: "st-pending", icon: '<i class="fa-solid fa-flag"></i>' }
+            ];
+
+            if (status.includes("Submitted") || status.includes("Waiting for HOD")) { 
+                steps[0].state = "st-done"; steps[1].state = "st-current"; 
+            }
+            else if (status.includes("Approved by HOD") || status.includes("Partially")) { 
+                steps[0].state = "st-done"; steps[1].state = "st-done"; steps[2].state = "st-current"; 
+            }
+            else if (status.includes("Rejected by HOD")) { 
+                steps[0].state = "st-done"; 
+                steps[1].state = "st-rejected"; steps[1].icon = '<i class="fa-solid fa-xmark"></i>'; 
+                steps[2].state = "st-rejected"; steps[2].icon = '<i class="fa-solid fa-ban"></i>';
+                steps[3].state = "st-rejected"; steps[3].icon = '<i class="fa-solid fa-ban"></i>';
+                steps[4].state = "st-rejected"; steps[4].icon = '<i class="fa-solid fa-ban"></i>';
+            }
+            else if (status.includes("Approved by Committee") || status.includes("Waiting for Final Approval")) { 
+                steps[0].state = "st-done"; steps[1].state = "st-done"; 
+                if(status.includes("Partially")) {
+                    steps[2].state = "st-current";
+                } else {
+                    steps[2].state = "st-done"; 
+                    steps[3].state = "st-current"; // Waiting for Final Approval
+                }
+            }
+            else if (status.includes("Rejected by Committee")) { 
+                steps[0].state = "st-done"; steps[1].state = "st-done"; 
+                steps[2].state = "st-rejected"; steps[2].icon = '<i class="fa-solid fa-xmark"></i>'; 
+                steps[3].state = "st-rejected"; steps[3].icon = '<i class="fa-solid fa-ban"></i>';
+                steps[4].state = "st-rejected"; steps[4].icon = '<i class="fa-solid fa-ban"></i>';
+            }
+            else if (status.includes("Rejected by HOK")) { 
+                steps[0].state = "st-done"; steps[1].state = "st-done"; steps[2].state = "st-done"; 
+                steps[3].state = "st-rejected"; steps[3].icon = '<i class="fa-solid fa-xmark"></i>'; 
+                steps[4].state = "st-rejected"; steps[4].icon = '<i class="fa-solid fa-ban"></i>';
+            }
+            else if (status.includes("Completed")) { 
+                steps.forEach(s => { s.state = "st-done"; s.icon = '<i class="fa-solid fa-check"></i>'; }); 
+            }
+
+            let html = '<div class="p-2 w-48"><h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Status Tracker</h4>';
+            steps.forEach((s, i) => { html += `<div class="tracker-step table-row-anim" style="animation-delay: ${i * 50}ms"><div class="tracker-line"></div><div class="tracker-icon ${s.state}">${s.icon}</div><div class="flex flex-col"><span class="text-xs font-bold ${s.state === 'st-pending' ? 'text-slate-400' : 'text-slate-800'}">${s.label}</span><span class="text-[9px] text-slate-400 uppercase tracking-wide">${s.state.replace('st-', '')}</span></div></div>`; });
+            html += '</div>';
+            tooltipEl.innerHTML = html;
+            positionTooltip(element);
+        }
+
+        // --- MAP MODAL LOGIC (CLICK) ---
+        let viewMap = null;
+        let viewMarker = null;
+
+        function openViewMap(plantName, specificLoc) {
+            const modal = document.getElementById('viewMapModal');
+            modal.classList.add('show');
+            document.getElementById('viewMapLabel').innerText = `Viewing: ${escapeHtml(plantName)}`;
+
+            let lat = 12.862188, lng = 79.730272; // Default
+            let isSpecific = false;
+
+            if(specificLoc && specificLoc !== 'null') {
+                const parts = specificLoc.split(',');
+                if(parts.length === 2) { 
+                    lat = parseFloat(parts[0]); 
+                    lng = parseFloat(parts[1]); 
+                    isSpecific = true;
+                }
+            } else {
+                const plantObj = plantObjects.find(p => (typeof p === 'object' ? p.name : p) === plantName);
+                if (plantObj && plantObj.lat && plantObj.lng) {
+                    lat = parseFloat(plantObj.lat);
+                    lng = parseFloat(plantObj.lng);
+                }
+            }
+
+            document.getElementById('viewMapCoords').innerText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+            if (!viewMap) {
+                viewMap = L.map('viewMapContainer', { zoomControl: false }).setView([lat, lng], 16);
+                L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+                }).addTo(viewMap);
+            }
+
+            setTimeout(() => {
+                viewMap.invalidateSize();
+                viewMap.flyTo([lat, lng], 16, { duration: 1.5 });
+                
+                if(viewMarker) viewMap.removeLayer(viewMarker);
+                
+                viewMarker = L.marker([lat, lng]).addTo(viewMap)
+                    .bindPopup(isSpecific ? "<b>Exact Location Pinned</b>" : `<b>${escapeHtml(plantName)} Plant</b><br>Standard Location`)
+                    .openPopup();
+            }, 200);
+        }
+
+        function closeViewMap() {
+            document.getElementById('viewMapModal').classList.remove('show');
+        }
+
+        // --- FETCH & RENDER ---
+        async function fetchData() {
+            try {
+                // 🔒 PRODUCTION FIX: Safe fetch
+                const data = await fetchSecure('/get-kaizens');
+                
+                const myId = user.emp_id;
+                const myName = `${user.fname} ${user.lname}`;
+                
+                // Filter: Show only User's Kaizens (Leader, Creator, or Team Member)
+                const myKaizens = data.filter(k => {
+                    const isLeader = k.leader_name && k.leader_name.includes(myId);
+                    const isCreator = k.created_by && k.created_by.includes(myName);
+                    const isMember = k.team_members && k.team_members.includes(myName);
+                    return isLeader || isCreator || isMember;
+                });
+
+                myKaizens.sort((a, b) => b.id - a.id); // Newest first
+                allData = myKaizens;
+                renderTable(allData);
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="9" class="text-center text-red-500 font-bold py-16">Failed to load data. Please refresh.</td></tr>`;
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = ''; 
+            document.getElementById('recordCount').innerText = `${data.length} Records`;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-16 text-lg italic font-medium">You haven't participated in any Kaizens yet.</td></tr>`;
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "table-row-anim";
+                tr.style.animationDelay = `${index * 50}ms`;
+
+                const status = item.status || "Submitted"; 
+                const deptVal = item.department || item.dept || '-';
+                const groupVal = item.product_group || item.group || '-';
+                
+                let dateVal = item.date || (item.timestamp ? item.timestamp.split(',')[0] : '');
+                if(dateVal.includes('-') && dateVal.split('-')[0].length === 4) {
+                    const parts = dateVal.split('-');
+                    dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+
+                const rawName = item.leader_name || "Unknown";
+                const nameOnly = rawName.split('(')[0].trim();
+                const idOnly = rawName.match(/\((.*?)\)/) ? rawName.match(/\((.*?)\)/)[1] : "N/A";
+                const createdBy = item.created_by ? item.created_by : (idOnly !== "N/A" ? `${nameOnly} (${idOnly})` : nameOnly);
+
+                const tooltipData = {
+                    idOnly: idOnly, createdBy: createdBy, category: item.category,
+                    focus_area: item.focus_area, process_name: item.process_name,
+                    kaizen_type: item.kaizen_type, team_members: item.team_members
+                };
+                const dataString = JSON.stringify(tooltipData).replace(/"/g, '&quot;');
+
+                // Team Icon Logic
+                let roleIcon = '';
+                const myId = user.emp_id;
+                const myName = `${user.fname} ${user.lname}`;
+                const isLeader = item.leader_name && item.leader_name.includes(myId);
+                const isMember = item.team_members && item.team_members.includes(myName);
+
+                if (isLeader || isMember) {
+                    roleIcon = `<span class="ml-2 text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] border border-blue-200" title="You are a Team Member/Leader"><i class="fa-solid fa-users"></i></span>`;
+                }
+
+                const selfScore = parseInt(item.evaluation_scores?.final_total_score || 0);
+                const hodScore = item.hod_evaluation ? parseInt(item.hod_evaluation.final_score || 0) : 0;
+                const commScore = item.committee_evaluation ? parseInt(item.committee_evaluation.final_score || 0) : 0;
+                
+                let showHod = item.hod_evaluation ? true : false;
+                let showComm = (!status.includes("Waiting for HOD") && !status.includes("Approved by HOD") && !status.includes("Partially")) ? true : false;
+
+                const scoreTooltipData = { self: selfScore, hod: hodScore, comm: commScore, total: item.current_total_score || 0, showHod: showHod, showComm: showComm };
+                const scoreDataString = JSON.stringify(scoreTooltipData).replace(/"/g, '&quot;');
+
+                let badgeClass = "bg-blue-50 text-blue-700 border border-blue-200";
+                let icon = '<i class="fa-regular fa-paper-plane mr-2 text-xs"></i>';
+                if(status.includes("HOD")) { badgeClass = "bg-amber-50 text-amber-700 border border-amber-200"; icon = '<i class="fa-solid fa-hourglass-half mr-2 text-xs"></i>'; }
+                if(status.includes("Committee")) { badgeClass = "bg-purple-50 text-purple-700 border border-purple-200"; icon = '<i class="fa-solid fa-users-viewfinder mr-2 text-xs"></i>'; }
+                if(status.includes("Final Approval")) { badgeClass = "bg-rose-50 text-rose-700 border border-rose-200"; icon = '<i class="fa-solid fa-stamp mr-2 text-xs"></i>'; }
+                if(status.includes("Completed")) { badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-200"; icon = '<i class="fa-solid fa-circle-check mr-2 text-xs"></i>'; }
+                if(status.includes("Rejected by HOK")) { badgeClass = "bg-red-50 text-red-700 border border-red-200"; icon = '<i class="fa-solid fa-ban mr-2 text-xs"></i>'; }
+                if(status.includes("Rejected by HOD")) { badgeClass = "bg-red-50 text-red-700 border border-red-200"; icon = '<i class="fa-solid fa-ban mr-2 text-xs"></i>'; }
+
+                let actions = '';
+                const isFinished = status.includes("Completed") || status.includes("Rejected");
+
+                if (isFinished) {
+                    actions += `<button onclick="window.location.href='final_view?id=${item.id}'" class="action-btn group" title="View Full Report"><i class="fa-regular fa-eye group-hover:text-white"></i></button>`;
+                    const itemJson = JSON.stringify(item).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                    actions += `<button onclick='generatePDF(${itemJson})' class="action-btn text-blue-500 hover:bg-blue-600 hover:text-white ml-2 group" title="Download Report"><i class="fa-solid fa-file-pdf"></i></button>`;
+                } else {
+                    actions += `<button class="action-btn group opacity-50 cursor-not-allowed" title="In Progress"><i class="fa-regular fa-eye"></i></button>`;
+                }
+                
+                if(status === "Waiting for HOD Evaluation") {
+                    actions += `<button onclick="deleteKaizen(${item.id})" class="action-btn text-rose-500 hover:bg-rose-600 hover:text-white ml-2 group" title="Delete"><i class="fa-solid fa-trash-can"></i></button>`;
+                }
+
+                const plantName = item.plant || 'Unknown';
+                const specificLoc = item.specific_location || null;
+                
+                // 🔒 PRODUCTION FIX: Escaping all user-generated strings
+                tr.innerHTML = `
+                    <td class="font-mono text-slate-500 font-bold text-xs">KZN-${item.id} ${roleIcon}</td>
+                    <td>
+                        <div class="flex items-center text-blue-600 cursor-pointer transition hover:text-blue-800 group"
+                             onclick="openViewMap('${escapeHtml(plantName)}', '${specificLoc}')">
+                            <i class="fa-solid fa-map-location-dot mr-2 text-xs text-blue-500 group-hover:text-blue-700 transition"></i> 
+                            <span class="border-b border-dashed border-blue-300 pb-0.5 group-hover:border-blue-600 transition font-semibold">${escapeHtml(plantName)}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="inline-flex items-center cursor-help" onmouseenter='showTooltip(this, ${dataString})' onmouseleave='hideTooltip()'>
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-100 to-blue-200 flex items-center justify-center text-xs font-bold mr-3 shadow-sm border border-blue-300 text-blue-700">${escapeHtml(nameOnly).charAt(0)}</div> 
+                            <span class="text-sm font-bold tracking-wide text-slate-800 cursor-pointer border-b border-dashed border-slate-300 pb-0.5 hover:border-blue-600 transition">${escapeHtml(nameOnly)}</span>
+                        </div>
+                    </td>
+                    <td><span class="glass-pill">${escapeHtml(groupVal)}</span></td>
+                    <td><span class="glass-pill border-blue-200 text-blue-700 font-medium">${escapeHtml(deptVal)}</span></td>
+                    <td>
+                        <div class="flex items-center cursor-help" onmouseenter='showScoreTooltip(this, ${scoreDataString})' onmouseleave='hideTooltip()'>
+                            <span class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-emerald-700 mr-1 border-b border-dashed border-emerald-300 hover:border-emerald-600 transition">${item.current_total_score || 0}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${badgeClass}" onmouseenter="showStatusTooltip(this, '${escapeHtml(status)}')" onmouseleave="hideTooltip()">${icon} ${escapeHtml(status)}</span>
+                    </td>
+                    <td class="text-xs text-slate-500 font-mono font-medium">${dateVal}</td>
+                    <td><div class="flex items-center justify-center">${actions}</div></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // PDF & Delete Functions
+        async function deleteKaizen(id) {
+            if(!confirm("Are you sure?")) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/delete-kaizen`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ id }) 
+                });
+                const result = await res.json();
+                if(result.success) fetchData();
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function generatePDF(item) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let y = 0; 
+
+            const printField = (label, value, xVal, yVal, wVal = 80) => {
+                doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(150);
+                doc.text(label.toUpperCase(), xVal, yVal);
+                doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(0);
+                const splitText = doc.splitTextToSize(String(value || "-"), wVal);
+                doc.text(splitText, xVal, yVal + 5);
+                return (splitText.length * 4) + 6; 
+            };
+
+            // HEADER
+            doc.setFillColor(30, 58, 138); doc.rect(0, 0, pageWidth, 25, "F");
+            doc.setFontSize(16); doc.setTextColor(255); doc.setFont("helvetica", "bold");
+            doc.text("L&T VALVES - KAIZEN REPORT", 10, 10);
+            doc.setFontSize(9); doc.setFont("helvetica", "normal");
+            doc.text(`Generated On: ${new Date().toLocaleString()}`, 10, 18);
+            
+            doc.setFillColor(255, 255, 255); doc.roundedRect(pageWidth - 70, 6, 60, 12, 2, 2, "F");
+            doc.setTextColor(30, 58, 138); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+            doc.text(`STATUS: ${item.status}`, pageWidth - 40, 13, { align: "center" });
+
+            doc.setTextColor(200); doc.setFontSize(8);
+            doc.text(`ID: KZN-${item.id}  |  Score: ${item.current_total_score || 0}`, pageWidth - 10, 22, { align: "right" });
+
+            y = 35;
+
+            // SECTION 1: GENERAL INFO
+            doc.setFillColor(240, 240, 240); doc.rect(10, y, pageWidth - 20, 8, "F");
+            doc.setFontSize(11); doc.setTextColor(30, 58, 138); doc.setFont("helvetica", "bold");
+            doc.text("1. GENERAL INFORMATION", 12, y + 5.5);
+            y += 15;
+
+            let locStr = item.plant || "-";
+            if(item.specific_location) locStr += ` (Pin: ${item.specific_location})`;
+            else if(window.plantObjects) {
+                const pObj = window.plantObjects.find(p => (typeof p === 'object' ? p.name : p) === item.plant);
+                if(pObj && pObj.lat) locStr += ` (${pObj.lat}, ${pObj.lng})`;
+            }
+
+            const leftX = 12; const rightX = 110;
+            let h1 = printField("Team Leader", item.leader_name, leftX, y);
+            let h2 = printField("Created By", item.created_by, rightX, y);
+            y += Math.max(h1, h2) + 2;
+
+            h1 = printField("Department", item.department || item.dept, leftX, y);
+            h2 = printField("Plant / Location", locStr, rightX, y);
+            y += Math.max(h1, h2) + 2;
+
+            h1 = printField("Product Group", item.product_group, leftX, y);
+            h2 = printField("Category", item.category, rightX, y);
+            y += Math.max(h1, h2) + 2;
+            
+            h1 = printField("Focus Area", item.focus_area || item.focusArea, leftX, y);
+            h2 = printField("Kaizen Type", item.kaizen_type, rightX, y);
+            y += Math.max(h1, h2) + 2;
+            
+            if(item.kaizen_type === "Team") {
+                h1 = printField("Team Members", item.team_members, leftX, y, 180);
+                y += h1 + 2;
+            }
+            
+            h1 = printField("Process Name", item.process_name, leftX, y);
+            h2 = printField("Created On", item.date || item.timestamp, rightX, y);
+            y += Math.max(h1, h2) + 6;
+
+            // SECTION 2: IMPROVEMENT
+            doc.setFillColor(240, 240, 240); doc.rect(10, y, pageWidth - 20, 8, "F");
+            doc.text("2. IMPROVEMENT DETAILS", 12, y + 5.5);
+            y += 12;
+
+            h1 = printField("Theme", item.theme, leftX, y, 180);
+            y += h1 + 4;
+            doc.setDrawColor(200); doc.line(10, y, pageWidth-10, y); y += 5;
+
+            let beforeH = printField("Before Condition", item.before_description, leftX, y, 90);
+            let afterH = printField("After Condition", item.after_description, rightX, y, 90);
+            y += Math.max(beforeH, afterH) + 6;
+
+            // SECTION 3: BENEFITS
+            if(y > 240) { doc.addPage(); y = 20; }
+            doc.setFillColor(240, 240, 240); doc.rect(10, y, pageWidth - 20, 8, "F");
+            doc.text("3. BENEFITS (FINANCIALS)", 12, y + 5.5);
+            y += 12;
+
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Expenditure", 12, y); doc.text("Direct Savings", 70, y);
+            doc.text("Indirect Savings", 130, y); doc.text("Net Benefit", 180, y);
+            y += 6;
+            
+            doc.setFontSize(12); doc.setTextColor(0);
+            doc.text(String(item.financials?.expenditure_cost || item.expenditure || "0"), 12, y);
+            doc.text(String(item.financials?.direct_savings || item.direct_savings || "0"), 70, y);
+            doc.text(String(item.financials?.indirect_savings || item.indirect_savings || "0"), 130, y);
+            doc.setTextColor(0, 150, 0); 
+            doc.text(String(item.financials?.net_gain || item.net_gain || "0"), 180, y);
+            y += 10;
+
+            doc.setTextColor(0);
+            h1 = printField("Expenditure Details", item.expenditure_details || item.expDetails, 12, y, 55);
+            let h_d = printField("Direct Savings Details", item.direct_savings_details || item.directDetails, 70, y, 55);
+            let h_i = printField("Indirect Savings Details", item.indirect_savings_details || item.indirectDetails, 130, y, 65);
+            y += Math.max(h1, h_d, h_i) + 8;
+
+            // SECTION 4: SELF EVAL
+            if(y > 220) { doc.addPage(); y = 20; }
+            doc.setFillColor(245, 247, 255); doc.rect(10, y, pageWidth - 20, 8, "F");
+            doc.setFontSize(10); doc.setTextColor(0); doc.text("4. SELF EVALUATION", 12, y + 5.5);
+            doc.setFontSize(9); doc.text(`Multiplier: ${item.focusMultiplier || 1.0} | Score: ${item.evaluation_scores?.final_total_score || 0}`, 150, y + 5.5);
+            y += 12;
+            if(item.evaluation_scores?.scores) {
+                Object.entries(item.evaluation_scores.scores).forEach(([k, v]) => {
+                     doc.setFontSize(8); doc.setTextColor(100); doc.text(k.replace(/_/g, ' '), 15, y);
+                     doc.setTextColor(0); doc.text(String(v), 180, y, {align:'right'});
+                     y += 5;
+                });
+            }
+            y += 4;
+
+            // SECTION 5: HOD EVAL
+            if(item.hod_evaluation) {
+                if(y > 250) { doc.addPage(); y = 20; }
+                doc.setFillColor(255, 247, 237); doc.rect(10, y, pageWidth - 20, 8, "F");
+                doc.setTextColor(194, 65, 12); doc.text("5. HOD EVALUATION", 12, y + 5.5);
+                doc.setTextColor(0); doc.setFontSize(9);
+                doc.text(`Evaluator: ${item.hod_evaluation.evaluator || '-'} | Score: ${item.hod_evaluation.final_score || 0}`, 110, y + 5.5);
+                y += 12;
+                if(item.hod_evaluation.scores) {
+                    Object.entries(item.hod_evaluation.scores).forEach(([k, v]) => {
+                         doc.setFontSize(8); doc.setTextColor(100); doc.text(k.replace(/_/g, ' '), 15, y);
+                         doc.setTextColor(0); doc.text(String(v), 180, y, {align:'right'});
+                         y += 5;
+                    });
+                }
+                y += 2;
+                let commH = printField("HOD Remarks", item.hod_evaluation.comments, 15, y, 180);
+                y += commH + 5;
+            }
+
+            if(item.status.includes("Rejected by HOD")) {
+                doc.setTextColor(200, 0, 0); doc.setFontSize(12);
+                doc.text("*** REJECTED BY HOD - PROCESS ENDED ***", 105, y + 10, {align: 'center'});
+                doc.save(`Kaizen_${item.id}.pdf`);
+                return;
+            }
+
+            // SECTION 6: COMMITTEE
+            if(item.committee_votes && item.committee_votes.length > 0) {
+                if(y > 240) { doc.addPage(); y = 20; }
+                doc.setFillColor(243, 232, 255); doc.rect(10, y, pageWidth - 20, 8, "F");
+                doc.setTextColor(107, 33, 168); doc.text("6. COMMITTEE EVALUATION", 12, y + 5.5);
+                y += 12;
+
+                item.committee_votes.forEach(vote => {
+                    if(y > 250) { doc.addPage(); y = 20; }
+                    doc.setFontSize(9); doc.setTextColor(0); doc.setFont("helvetica", "bold");
+                    doc.text(`${vote.evaluator} (${new Date(vote.date).toLocaleDateString()}) - Score: ${vote.final_score}`, 15, y);
+                    y += 5;
+                    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100);
+                    let cH = printField("Remarks", vote.comments, 20, y, 170);
+                    y += cH + 3;
+                    doc.setDrawColor(230); doc.line(15, y, 190, y); y += 4;
+                });
+            }
+
+            // SECTION 7: FINAL REVIEW
+            if(item.status.includes("Completed") || item.status.includes("Rejected")) {
+                if(y > 240) { doc.addPage(); y = 20; }
+                if(item.status.includes("Rejected")) { doc.setFillColor(254, 226, 226); doc.setTextColor(185, 28, 28); } 
+                else { doc.setFillColor(236, 253, 245); doc.setTextColor(4, 120, 87); }
+                
+                doc.rect(10, y, pageWidth - 20, 8, "F");
+                doc.text("7. FINAL REVIEW & APPROVAL", 12, y + 5.5);
+                y += 12;
+
+                if(item.coordinator_message) { let ch = printField("Coordinator Message", item.coordinator_message, 15, y, 180); y += ch + 3; }
+                if(item.hok_message) { let hh = printField("HOK Message", item.hok_message, 15, y, 180); y += hh + 3; }
+                if(item.final_user_message) { let fh = printField("Final Note to User", item.final_user_message, 15, y, 180); y += fh + 3; }
+
+                if(item.reward_amount) {
+                    doc.setFontSize(12); doc.setTextColor(0, 100, 0); doc.setFont("helvetica", "bold");
+                    doc.text(`REWARD AWARDED: INR ${item.reward_amount}`, 105, y + 10, {align:'center'});
+                }
+            }
+
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text("Generated by Kaizen Portal | L&T Valves", 105, pageHeight - 10, { align: "center" });
+
+            doc.save(`Kaizen_Report_${item.id}.pdf`);
+        }
+
+        // Filtering
+        function toggleSearch(index, icon) { document.querySelectorAll('.search-popup').forEach((p, i) => { if (i !== index) p.classList.remove('show'); }); document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active')); const popup = document.getElementById(`popup-${index}`); popup.classList.toggle('show'); icon.classList.toggle('active'); if(popup.classList.contains('show')) popup.querySelector('input').focus(); }
+        document.addEventListener('click', e => { if (!e.target.closest('th')) { document.querySelectorAll('.search-popup').forEach(p => p.classList.remove('show')); document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active')); }});
+        function applyFilters() {
+            const trs = document.getElementById("kaizenTable").getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+            const startVal = document.getElementById('startDate').value, endVal = document.getElementById('endDate').value;
+            const startDate = startVal?new Date(startVal):null, endDate = endVal?new Date(endVal):null; if(endDate) endDate.setHours(23,59,59);
+            const filters = Array.from(document.querySelectorAll('.popup-input')).map(i=>i.value.toUpperCase());
+            let count = 0;
+            for(let i=0;i<trs.length;i++){
+                const tr=trs[i]; if(tr.innerText.includes("You haven't participated")) continue;
+                let show=true;
+                if(startDate||endDate){ const d=tr.getElementsByTagName("td")[7]; if(d){ const parts=d.innerText.trim().split('/'); const rd=new Date(`${parts[2]}-${parts[1]}-${parts[0]}`); if(startDate&&rd<startDate)show=false; if(endDate&&rd>endDate)show=false; }}
+                if(show) for(let j=0;j<filters.length;j++) if(filters[j]){ const td=tr.getElementsByTagName("td")[j]; if(td){ const txt=td.innerText; if(j===5&&!isNaN(filters[j])){ if(parseInt(txt)<parseInt(filters[j]))show=false; } else if(txt.toUpperCase().indexOf(filters[j])===-1)show=false; }}
+                if(show){ tr.style.display=""; count++; } else tr.style.display="none";
+            }
+            document.getElementById('recordCount').innerText = `${count} Records`;
+        }
+        function clearDates(){ document.getElementById('startDate').value=''; document.getElementById('endDate').value=''; applyFilters(); }
+    </script>
+</body>
+</html>

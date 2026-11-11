@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <title>Committee Evaluation | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <link rel="stylesheet" href="/leaflet/dist/leaflet.css">
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #f3e8ff; border-radius: 40% 60% 70% 30%; } /* Soft Purple */
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #dbeafe; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Blue */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+        
+        /* 🪟 Clean Form Panels */
+        .form-section { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1rem; padding: 1.25rem; }
+        .section-header { font-size: 1.1rem; font-weight: 700; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem; display: flex; align-items: center; }
+        
+        /* Accordion Styles */
+        .accordion-header { cursor: pointer; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 0.5rem; transition: background 0.2s; }
+        .accordion-header:hover { background: #f8fafc; }
+        .accordion-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; }
+        
+        /* 📝 Compact Input Fields */
+        .input-field { background: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; font-size: 0.875rem; transition: all 0.2s ease; width: 100%; padding: 0.375rem 0.5rem; border-radius: 0.25rem; }
+        .input-field:focus { background: #ffffff; border-color: #7c3aed; outline: none; box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2); }
+        
+        /* Tags */
+        .tag { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 0.1rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; display: inline-flex; align-items: center; margin-right: 0.25rem; margin-top: 0.25rem; }
+        
+        .hidden { display: none !important; } 
+        .required-star { color: #f43f5e; margin-left: 2px; }
+        .custom-cb { width: 1rem; height: 1rem; accent-color: #7c3aed; cursor: pointer; margin-right: 0.5rem; }
+        label.text-sm { font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem; display: block; }
+        .radio-label { display: inline-flex; align-items: center; font-size: 0.85rem; color: #334155; cursor: pointer; margin-right: 1rem; }
+
+        /* 🚫 READ-ONLY STYLES (Blocks user interaction and shows cross cursor) */
+        .read-only-box input, .read-only-box textarea, .read-only-box select { background-color: #f8fafc !important; cursor: not-allowed !important; opacity: 0.8; }
+        .read-only-box .custom-cb { cursor: not-allowed !important; filter: grayscale(100%); opacity: 0.7; }
+        .read-only-box label { cursor: not-allowed !important; }
+        .img-preview { height: 150px; width: 100%; object-fit: cover; border-radius: 0.375rem; border: 1px solid #cbd5e1; cursor: pointer; transition: transform 0.2s; }
+        .img-preview:hover { transform: scale(1.02); border-color: #7c3aed; }
+
+        /* 📋 Option Cards (For Criteria Scoring - Purple Accent) */
+        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s ease; position: relative; color: #475569; }
+        .option-card:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .option-card.selected { background: #7c3aed; border-color: #7c3aed; color: white; }
+        .pts-badge { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+        .option-card.selected .pts-badge { background: rgba(255,255,255,0.2); color: white; border-color: transparent; }
+
+        /* MAP MODAL Styles */
+        #viewMapModal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 10000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        #viewMapModal.show { display: flex; opacity: 1; }
+        .map-modal-content { width: 90%; max-width: 800px; background: #ffffff; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; overflow: hidden; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #viewMapModal.show .map-modal-content { transform: scale(1); }
+        #viewMapContainer { height: 500px; width: 100%; }
+        .leaflet-marker-icon { animation: dropPin 0.5s ease-out; }
+        @keyframes dropPin { 0% { transform: translateY(-20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="min-h-screen relative pb-40 text-slate-800">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-50 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm bg-white/90">
+        <div class="flex items-center space-x-3">
+            <a href="committee_pending" class="text-slate-600 hover:text-purple-600 text-sm font-bold"><i class="fa-solid fa-arrow-left mr-1"></i> Back</a>
+            <h1 class="text-lg font-bold text-purple-600 tracking-wider">COMMITTEE EVALUATION</h1>
+        </div>
+        <div class="text-right hidden md:block">
+            <p class="text-[10px] text-slate-500 font-bold uppercase">Evaluator</p>
+            <p class="text-xs font-bold text-purple-600" id="scorerName">Loading...</p>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 mt-6">
+
+        <div class="accordion-header" onclick="toggleAccordion('kaizenDetailsBox', 'kdIcon')">
+            <div class="accordion-title"><i class="fa-solid fa-file-lines text-blue-600 mr-2"></i>Kaizen Details (Submitted By User)</div>
+            <i id="kdIcon" class="fa-solid fa-chevron-down text-slate-500"></i>
+        </div>
+        
+        <div id="kaizenDetailsBox" class="hidden read-only-box mb-6">
+            
+            <div class="form-section">
+                <h2 class="section-header justify-between">
+                    <span>Section A: Implementation Verification</span>
+                    <label class="inline-flex items-center cursor-not-allowed bg-amber-50 px-2 py-1 border border-amber-200 rounded opacity-80" id="offline_toggle_container">
+                        <input type="checkbox" id="ro_offline_toggle" class="sr-only peer" disabled>
+                        <div class="relative w-8 h-4 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
+                        <span class="ms-2 text-xs font-bold text-amber-700">Manual Entry</span>
+                    </label>
+                </h2>
+                <div class="flex items-center space-x-6">
+                    <label class="text-sm !mb-0">Has this Kaizen been fully implemented?</label>
+                    <div class="flex">
+                        <label class="radio-label"><input type="radio" name="ro_fully_implemented" value="Yes" class="custom-cb" disabled> Yes</label>
+                        <label class="radio-label"><input type="radio" name="ro_fully_implemented" value="No" class="custom-cb" disabled> No</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header">Section B: General Information</h2>
+                <div class="flex items-center space-x-6 mb-4 bg-slate-50 p-2 border border-slate-200 rounded">
+                    <label class="text-sm !mb-0 text-blue-700">Kaizen Type:</label>
+                    <label class="radio-label !mr-4"><input type="radio" name="ro_k_type" value="Individual" class="custom-cb" disabled> Individual</label>
+                    <label class="radio-label"><input type="radio" name="ro_k_type" value="Team" class="custom-cb" disabled> Team</label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div><label class="text-sm">Name</label><input type="text" id="ro_leader_name" class="input-field" disabled></div>
+                    <div><label class="text-sm">Plant</label><input type="text" id="ro_plant" class="input-field" disabled></div>
+                    <div><label class="text-sm">Department</label><input type="text" id="ro_dept" class="input-field" disabled></div>
+                    <div><label class="text-sm">Implementation Date</label><input type="text" id="ro_impl_date" class="input-field" disabled></div>
+                    <div><label class="text-sm">Work Area / Asset ID</label><input type="text" id="ro_work_area" class="input-field" disabled></div>
+                    
+                    <div id="ro_supervisor_div" class="bg-amber-50 p-1 border border-amber-200 rounded hidden">
+                        <label class="text-sm !text-amber-800">Supervisor Sign-off?</label>
+                        <div class="flex mt-1">
+                            <label class="radio-label !text-amber-900"><input type="radio" name="ro_supervisor_signoff" value="Yes" class="custom-cb" disabled> Yes</label>
+                            <label class="radio-label !text-amber-900"><input type="radio" name="ro_supervisor_signoff" value="No" class="custom-cb" disabled> No</label>
+                        </div>
+                    </div>
+                    <div><label class="text-sm">Product Group</label><input type="text" id="ro_product_group" class="input-field" disabled></div>
+                    <div><label class="text-sm">Process Name</label><input type="text" id="ro_process_name" class="input-field" disabled></div>
+                    <div class="md:col-span-3 lg:col-span-4">
+                        <label class="text-sm">Categories Impacted</label>
+                        <div id="ro_category_tags" class="mt-1 flex flex-wrap min-h-[20px]"></div>
+                    </div>
+                </div>
+                <div class="mt-4 border-t border-slate-200 pt-3" id="ro_team_container" style="display:none;">
+                    <label class="text-sm text-blue-700">Team Members</label>
+                    <div id="ro_members_tags" class="mt-1 flex flex-wrap"></div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header">Section C: Improvement Details</h2>
+                <div class="mb-3">
+                    <label class="text-sm text-blue-700">KAIZEN THEME</label>
+                    <input type="text" id="ro_kaizen_theme" class="input-field font-bold" disabled>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-rose-600">Before State</label>
+                        <textarea id="ro_before_desc" rows="3" class="input-field mb-2" disabled></textarea>
+                        <div id="ro_before_img_container"></div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-emerald-600">After State</label>
+                        <textarea id="ro_after_desc" rows="3" class="input-field mb-2" disabled></textarea>
+                        <div id="ro_after_img_container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header">Section D: Benefit Type & Financials</h2>
+                <div class="flex items-center space-x-6 mb-4">
+                    <label class="text-sm !mb-0">Benefit Type:</label>
+                    <label class="radio-label"><input type="radio" name="ro_benefit_type" value="Monetary" class="custom-cb" disabled> Monetary</label>
+                    <label class="radio-label"><input type="radio" name="ro_benefit_type" value="Non-Monetary" class="custom-cb" disabled> Non-Monetary</label>
+                </div>
+
+                <div id="ro_monetary_section" class="bg-slate-50 p-4 rounded border border-slate-200 hidden">
+                    <div class="mb-4 pb-4 border-b border-slate-200">
+                        <label class="text-sm text-blue-700 mb-2 block">Monetary Category</label>
+                        <div class="flex space-x-6 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_monetary_category" value="Recurring (annual)" class="custom-cb" disabled> Recurring (annual)</label>
+                            <label class="radio-label"><input type="radio" name="ro_monetary_category" value="One-time" class="custom-cb" disabled> One-time</label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cost Before Improvement (₹)</label>
+                            <input type="text" id="ro_base_metric" class="input-field w-full rounded px-2 py-1.5" disabled>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cost After Improvement (₹)</label>
+                            <input type="text" id="ro_after_metric" class="input-field w-full rounded px-2 py-1.5" disabled>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Investment if any (₹)</label>
+                            <input type="text" id="ro_imp_cost" class="input-field w-full rounded px-2 py-1.5" disabled>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 pb-4 border-b border-slate-200">
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Justification for Calculation</label>
+                        <textarea id="ro_quant_method_other" rows="2" class="input-field w-full rounded px-3 py-2" disabled></textarea>
+                    </div>
+
+                    <div class="flex justify-end bg-white p-3 rounded border border-emerald-200 shadow-sm">
+                        <div class="text-right">
+                            <span class="text-[11px] uppercase text-emerald-600 font-bold block tracking-wider">Net Savings (₹)</span>
+                            <span id="ro_calc_annual_saving" class="text-2xl font-bold text-emerald-600 font-mono">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ro_non_monetary_section" class="bg-slate-50 p-3 rounded border border-slate-200 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm text-purple-700">Primary Impact</label>
+                            <div class="grid grid-cols-1 gap-1 mt-1">
+                                <label class="radio-label"><input type="radio" name="ro_nm_impact" value="Safety risk reduction" class="custom-cb" disabled> Safety risk reduction</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_impact" value="Compliance/Quality assurance" class="custom-cb" disabled> Compliance/Quality assurance</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_impact" value="Ergonomics/Well-being" class="custom-cb" disabled> Ergonomics/Well-being</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_impact" value="Customer experience" class="custom-cb" disabled> Customer experience</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_impact" value="Knowledge/Standardization" class="custom-cb" disabled> Knowledge/Standardization</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-sm text-purple-700">Severity Reduction</label>
+                            <div class="grid grid-cols-2 gap-2 mt-1">
+                                <label class="radio-label"><input type="radio" name="ro_nm_severity" value="Critical" class="custom-cb text-rose-500" disabled> Critical</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_severity" value="High" class="custom-cb text-orange-500" disabled> High</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_severity" value="Medium" class="custom-cb text-amber-500" disabled> Medium</label>
+                                <label class="radio-label"><input type="radio" name="ro_nm_severity" value="Low" class="custom-cb text-emerald-500" disabled> Low</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header">Section E: Organizational Impact</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">PQCDSM Impacted</label>
+                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Productivity" class="custom-cb" disabled> Productivity</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Quality" class="custom-cb" disabled> Quality</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Cost" class="custom-cb" disabled> Cost</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Delivery" class="custom-cb" disabled> Delivery</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Safety" class="custom-cb" disabled> Safety</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_pqcdsm_chk" value="Morale" class="custom-cb" disabled> Morale</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Sustainability Impacted</label>
+                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Energy" class="custom-cb" disabled> Energy</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Water" class="custom-cb" disabled> Water</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Emissions" class="custom-cb" disabled> Emissions</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Waste" class="custom-cb" disabled> Waste</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Circular Economy" class="custom-cb" disabled> Circular Economy</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_sustain_chk" value="Resource Management" class="custom-cb" disabled> Resources</label>
+                            <div class="flex items-center col-span-2 lg:col-span-1">
+                                <label class="radio-label !mr-2"><input type="checkbox" name="ro_sustain_chk" value="Others" class="custom-cb" disabled> Others</label>
+                                <input type="text" id="ro_sustain_other" class="input-field hidden w-full" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header">Section F: Replicability & Standards</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Is Standard Work / SOP updated?</label>
+                        <div class="flex space-x-6 mt-2">
+                            <label class="radio-label"><input type="radio" name="ro_sop_updated" value="Yes" class="custom-cb" disabled> Yes</label>
+                            <label class="radio-label"><input type="radio" name="ro_sop_updated" value="No" class="custom-cb" disabled> No</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Replicability Potential</label>
+                        <div class="flex flex-col space-y-2 mt-2">
+                            <label class="radio-label"><input type="radio" name="ro_replicability" value="Yes (other lines/plants)" class="custom-cb" disabled> Yes (other lines/plants)</label>
+                            <label class="radio-label"><input type="radio" name="ro_replicability" value="Maybe" class="custom-cb" disabled> Maybe</label>
+                            <div class="flex items-center">
+                                <label class="radio-label !mr-2"><input type="radio" name="ro_replicability" value="No" class="custom-cb" disabled> No</label>
+                                <input type="text" id="ro_replicability_reason" class="input-field hidden w-full" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div> 
+
+        <!-- 🔥 ADDED HOD ASSESSMENT ACCORDION -->
+        <div class="accordion-header" onclick="toggleAccordion('hodAssessmentBox', 'hodIcon')">
+            <div class="accordion-title"><i class="fa-solid fa-clipboard-check text-amber-600 mr-2"></i> HOD Assessment & Scoring </div>
+            <i id="hodIcon" class="fa-solid fa-chevron-down text-slate-500"></i>
+        </div>
+        
+        <div id="hodAssessmentBox" class="hidden read-only-box mb-6">
+            
+            <div class="form-section">
+                <h2 class="section-header text-amber-800">A) Verification & Documentation</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q1. Implementation verified by:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_ver" value="Physical verification" class="custom-cb" disabled> Physical verification</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_ver" value="Evidence-only" class="custom-cb" disabled> Evidence-only</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_ver" value="Not verified" class="custom-cb" disabled> Not verified</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q2. Documentation completeness:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_doc" value="Complete" class="custom-cb" disabled> Complete</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_doc" value="Partial" class="custom-cb" disabled> Partial</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_doc" value="No" class="custom-cb" disabled> No</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-emerald-800">B) Impact Validation</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="text-sm">Q3. Benefit Type confirmed:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_ben" value="Monetary" class="custom-cb" disabled> Monetary</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_ben" value="Non-Monetary" class="custom-cb" disabled> Non-Monetary</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q4. If Monetary, category:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_mon_cat" value="Recurring" class="custom-cb" disabled> Recurring</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_mon_cat" value="One-time" class="custom-cb" disabled> One-time</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_mon_cat" value="N/A" class="custom-cb" disabled> N/A</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 bg-slate-50 p-3 rounded border border-slate-200">
+                    <div><label class="text-sm">Q5. VAL Annual Saving (₹)</label><input type="number" id="ro_h_val_ann" class="input-field mt-1" disabled></div>
+                    <div><label class="text-sm">Q6. VAL One-time Saving (₹)</label><input type="number" id="ro_h_val_one" class="input-field mt-1" disabled></div>
+                    <div><label class="text-sm text-rose-600">Q7. VAL Implementation Cost (₹)</label><input type="number" id="ro_h_val_cost" class="input-field mt-1" disabled></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q8. Technical correctness & safety:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_tech" value="Yes" class="custom-cb" disabled> Yes</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_tech" value="Needs improvement" class="custom-cb" disabled> Needs improvement</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_tech" value="No" class="custom-cb" disabled> No</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q9. Alignment to Dept KRAs/KPIs:</label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="ro_h_kra" value="Strong" class="custom-cb" disabled> Strong</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_kra" value="Some" class="custom-cb" disabled> Some</label>
+                            <label class="radio-label"><input type="radio" name="ro_h_kra" value="None" class="custom-cb" disabled> None</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">C) PQCDSM & Sustainability Confirmation</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q10. PQCDSM positively affected (tick):</label>
+                        <div class="grid grid-cols-2 mt-2 gap-2">
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Productivity" class="custom-cb" disabled> Productivity</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Quality" class="custom-cb" disabled> Quality</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Cost" class="custom-cb" disabled> Cost</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Delivery" class="custom-cb" disabled> Delivery</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Safety" class="custom-cb" disabled> Safety</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_pqc" value="Morale" class="custom-cb" disabled> Morale</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q11. Sustainability buckets (tick):</label>
+                        <div class="grid grid-cols-2 mt-2 gap-2">
+                            <label class="radio-label"><input type="checkbox" name="ro_h_sus" value="Energy" class="custom-cb" disabled> Energy</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_sus" value="Water" class="custom-cb" disabled> Water</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_sus" value="Emissions" class="custom-cb" disabled> Emissions</label>
+                            <label class="radio-label"><input type="checkbox" name="ro_h_sus" value="Waste" class="custom-cb" disabled> Waste</label>
+                            <label class="radio-label col-span-2"><input type="checkbox" name="ro_h_sus" value="Circular Economy" class="custom-cb" disabled> Circular Economy</label>
+                            <label class="radio-label col-span-2"><input type="checkbox" name="ro_h_sus" value="Resource Management" class="custom-cb" disabled> Resource Mgmt</label>
+                            <div class="col-span-2 flex items-center">
+                                <label class="radio-label !mr-2"><input type="checkbox" name="ro_h_sus" value="Others" class="custom-cb" disabled> Others</label>
+                                <input type="text" id="ro_h_sus_oth" class="input-field hidden w-full" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section bg-amber-50/50 border-amber-200">
+                <div class="flex justify-between items-center mb-2 border-b border-amber-200 pb-2">
+                    <h2 class="section-header !mb-0 !border-0 text-amber-800"><i class="fa-solid fa-clipboard-check mr-2"></i> HOD Scoring Results</h2>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-500 font-bold mr-2">HOD Score:</span>
+                        <span class="text-xl font-bold text-amber-600 font-mono bg-amber-100 px-3 py-1 rounded" id="displayHodTotal">0</span>
+                    </div>
+                </div>
+                <div id="hodEvalContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 mb-4"></div>
+                <div class="pt-4 border-t border-amber-200">
+                    <label class="text-sm text-slate-600 font-bold mb-1">HOD Remarks</label>
+                    <div id="k_hod_msg" class="bg-white p-3 rounded-lg border border-amber-200 text-sm text-slate-700 italic min-h-[3rem]">-</div>
+                </div>
+            </div>
+            
+        </div> 
+        <!-- 🔥 END OF HOD ASSESSMENT ACCORDION -->
+
+        <div class="accordion-header" onclick="toggleAccordion('commAssessmentBox', 'commIcon')">
+            <div class="accordion-title"><i class="fa-solid fa-users-gear text-purple-600 mr-2"></i> Committee Assessment & Scoring</div>
+            <i id="commIcon" class="fa-solid fa-chevron-down text-slate-500"></i>
+        </div>
+        
+        <div id="commAssessmentBox" class="hidden mb-6">
+            
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">A) Impact & Innovativeness</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q1. Overall impact (net of cost):<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_imp" value="Excellent" class="custom-cb"> Excellent</label>
+                            <label class="radio-label"><input type="radio" name="c_imp" value="Good" class="custom-cb"> Good</label>
+                            <label class="radio-label"><input type="radio" name="c_imp" value="Moderate" class="custom-cb"> Moderate</label>
+                            <label class="radio-label"><input type="radio" name="c_imp" value="Low" class="custom-cb"> Low</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q2. Innovativeness:<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_inn" value="High" class="custom-cb"> High</label>
+                            <label class="radio-label"><input type="radio" name="c_inn" value="Medium" class="custom-cb"> Medium</label>
+                            <label class="radio-label"><input type="radio" name="c_inn" value="Low" class="custom-cb"> Low</label>
+                            <label class="radio-label"><input type="radio" name="c_inn" value="Routine" class="custom-cb"> Routine</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">B) Durability & Replication</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q3. Expected sustainment (>12 months):<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_sus" value="Yes" class="custom-cb"> Yes</label>
+                            <label class="radio-label"><input type="radio" name="c_sus" value="Possibly" class="custom-cb"> Possibly</label>
+                            <label class="radio-label"><input type="radio" name="c_sus" value="No" class="custom-cb"> No</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q4. Replicability:<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_rep" value="2+ areas" class="custom-cb"> 2+ areas</label>
+                            <label class="radio-label"><input type="radio" name="c_rep" value="1 area" class="custom-cb"> 1 area</label>
+                            <label class="radio-label"><input type="radio" name="c_rep" value="Not replicable" class="custom-cb"> Not replicable</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">C) Cost–Benefit</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q5. Cost–benefit multiple (Savings / Impl. cost):<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_cost" value="≥10×" class="custom-cb"> ≥10×</label>
+                            <label class="radio-label"><input type="radio" name="c_cost" value="5–9×" class="custom-cb"> 5–9×</label>
+                            <label class="radio-label"><input type="radio" name="c_cost" value="2–4×" class="custom-cb"> 2–4×</label>
+                            <label class="radio-label"><input type="radio" name="c_cost" value="<2×" class="custom-cb"> &lt;2×</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q6. Monetary/non-monetary category check matches Dept Head:<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_cat" value="Yes" class="custom-cb"> Yes</label>
+                            <label class="radio-label"><input type="radio" name="c_cat" value="No" class="custom-cb"> No</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">D) Compliance & Conflict</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-sm">Q7. Documentation complete:<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_doc" value="Complete" class="custom-cb"> Complete</label>
+                            <label class="radio-label"><input type="radio" name="c_doc" value="Partial" class="custom-cb"> Partial</label>
+                            <label class="radio-label"><input type="radio" name="c_doc" value="No" class="custom-cb"> No</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm">Q8. Conflict of interest present:<span class="required-star">*</span></label>
+                        <div class="flex flex-col space-y-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="c_con" value="Yes (auto-reassign)" class="custom-cb text-rose-500"> Yes (auto-reassign)</label>
+                            <label class="radio-label"><input type="radio" name="c_con" value="No" class="custom-cb"> No</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-header text-purple-800">E) Finalization</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-purple-50 p-3 rounded border border-purple-200">
+                    <div><label class="text-sm">Q9. Committee-approved Annual Saving (₹)<span class="required-star">*</span></label><input type="number" id="c_ann_sav" class="input-field mt-1" placeholder="Enter amount..."></div>
+                    <div><label class="text-sm">Q10. Committee-approved One-time Saving (₹)<span class="required-star">*</span></label><input type="number" id="c_one_sav" class="input-field mt-1" placeholder="Enter amount..."></div>
+                </div>
+                <div>
+                    <label class="text-sm">Q11. Recommended Award Category:<span class="required-star">*</span></label>
+                    <div class="flex flex-col space-y-2 mt-2">
+                        <label class="radio-label"><input type="radio" name="c_award" value="Participation" class="custom-cb"> Participation</label>
+                        <label class="radio-label"><input type="radio" name="c_award" value="Accepted – Non-monetary (≤₹1,000)" class="custom-cb"> Accepted – Non-monetary (≤₹1,000)</label>
+                        <label class="radio-label"><input type="radio" name="c_award" value="Accepted – One-time (≤20%, cap ₹5,000)" class="custom-cb"> Accepted – One-time (≤20%, cap ₹5,000)</label>
+                        <label class="radio-label"><input type="radio" name="c_award" value="Accepted – Recurring (≤25% of 1st-year, cap ₹10,000)" class="custom-cb"> Accepted – Recurring (≤25% of 1st-year, cap ₹10,000)</label>
+                        <label class="radio-label"><input type="radio" name="c_award" value="Special Award (Best of Month/Year; Additional ₹500)" class="custom-cb text-amber-500"> Special Award (Best of Month/Year; Additional ₹500)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="flex justify-between items-center mb-2 border-b border-purple-200 pb-2">
+                    <h2 class="section-header !mb-0 !border-0 text-purple-800">Criteria Scoring<span class="required-star">*</span></h2>
+                </div>
+                <div id="dynamicQuestions" class="space-y-4 mb-4">
+                    <p class="text-center text-slate-500 font-medium text-sm">Loading evaluation criteria...</p>
+                </div>
+                <div class="pt-4 border-t border-slate-200">
+                    <label class="text-sm text-slate-600">Member Remarks (Optional)</label>
+                    <textarea id="commMessage" class="input-field mt-1" rows="3" placeholder="Enter technical feedback or notes..."></textarea>
+                </div>
+            </div>
+            
+        </div> </div>
+
+    <div class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] p-3 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="ml-2"><p class="text-[10px] text-purple-600 uppercase font-bold">Comm Total Score</p><p class="text-2xl font-extrabold text-slate-900 font-mono leading-none" id="finalScore">0</p></div>
+            </div>
+            <div class="flex space-x-3">
+                <button id="btnApprove" onclick="submitEvaluation('Approved by Committee')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-8 rounded shadow transition text-sm flex items-center">
+                    Submit Evaluation <i class="fa-solid fa-check-double ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewMapModal">
+        <div class="map-modal-content">
+            <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-b border-slate-200">
+                <h3 class="text-xs font-bold text-slate-800 uppercase flex items-center"><i class="fa-solid fa-map-location-dot mr-2 text-blue-600"></i> Plant Location View</h3>
+                <button onclick="closeViewMap()" class="text-slate-500 hover:text-slate-800"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="viewMapContainer"></div>
+            <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-t border-slate-200">
+                <span id="viewMapLabel" class="text-[10px] text-slate-600 font-mono font-semibold"></span>
+                <span id="viewMapCoords" class="text-[10px] text-blue-600 font-mono font-bold"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/leaflet/dist/leaflet.js"></script>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const kaizenId = parseInt(urlParams.get('id'));
+        let currentKaizen = null;
+        let currentScores = {}; 
+        let plantObjects = []; 
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        setTimeout(() => { toggleAccordion('commAssessmentBox', 'commIcon'); }, 500);
+
+        function toggleAccordion(contentId, iconId) {
+            const content = document.getElementById(contentId);
+            const icon = document.getElementById(iconId);
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.add('fa-chevron-down');
+                icon.classList.remove('fa-chevron-up');
+            }
+        }
+
+        window.onload = async function() {
+            const u = JSON.parse(localStorage.getItem('currentUser'));
+            if (!u || !u.is_committee) {
+                alert("Access Denied: You do not have Committee permissions.");
+                window.location.replace("index.html"); 
+                return;
+            }
+            document.getElementById('scorerName').innerText = `${u.fname} ${u.lname}`;
+
+            if(!kaizenId) { 
+                alert("No Kaizen ID found.");
+                window.location.replace("committee_pending.html"); 
+                return; 
+            }
+
+            const fetchSecure = async (url) => {
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }});
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                return res.json();
+            };
+
+            Promise.all([
+                fetchSecure(`${API_BASE_URL}/get-kaizens`),
+                fetchSecure(`${API_BASE_URL}/get-criteria?type=committee`),
+                fetchSecure(`${API_BASE_URL}/get-settings`)
+            ]).then(([kaizens, criteria, settings]) => {
+                currentKaizen = kaizens.find(k => k.id === kaizenId);
+                plantObjects = settings.find(s => s.type === 'plant')?.values || [];
+
+                if(currentKaizen) {
+                    
+                    const isReady = (currentKaizen.status === "Approved by HOD" || currentKaizen.status === "Partially Approved by Committee");
+                    if (!isReady) {
+                        alert(`Access Denied.\n\nThis Kaizen is currently: ${currentKaizen.status}. It is not pending Committee evaluation.`);
+                        window.location.replace("committee_pending.html");
+                        return;
+                    }
+                    
+                    const myId = u.emp_id;
+                    let hasVoted = false;
+                    if (currentKaizen.committee_votes && Array.isArray(currentKaizen.committee_votes)) {
+                        hasVoted = currentKaizen.committee_votes.some(v => v.evaluator_id === myId);
+                    }
+                    const isLeader = currentKaizen.leader_name && currentKaizen.leader_name.includes(myId);
+                    const isCreator = currentKaizen.created_by && currentKaizen.created_by.includes(myId);
+                    let isTeamMember = false;
+                    if(currentKaizen.team_members) {
+                        const membersStr = Array.isArray(currentKaizen.team_members) ? currentKaizen.team_members.join(' ') : currentKaizen.team_members;
+                        if(membersStr && membersStr.includes(myId)) isTeamMember = true;
+                    }
+                    if (hasVoted || isLeader || isCreator || isTeamMember) {
+                        alert("Access Denied: You cannot evaluate this Kaizen (Conflict of Interest or Already Voted).");
+                        window.location.replace("committee_pending.html");
+                        return;
+                    }
+
+                    populateReadonlyUserFields(currentKaizen);
+                    populateReadonlyHODFields(currentKaizen);
+                    renderHodScoreBox(currentKaizen);
+                } else {
+                    alert("Kaizen not found!");
+                    window.location.replace("committee_pending.html");
+                }
+                renderDynamicQuestions(criteria);
+            }).catch(err => {
+                console.error("Error loading data:", err);
+                alert("Failed to load data.");
+            });
+        };
+
+        const setVal = (id, val) => { 
+            const el = document.getElementById(id); 
+            if(el) el.value = (val !== null && val !== undefined) ? val : ''; 
+        };
+        
+        const setRadio = (name, val) => { 
+            if (!val) return;
+            const cleanVal = String(val).trim();
+            const el = document.querySelector(`input[name="${name}"][value="${cleanVal}"]`); 
+            if(el) el.checked = true; 
+        };
+        
+        const setChecks = (name, valString) => { 
+            if(!valString) return; 
+            valString.split(',').forEach(v => {
+                const cleanVal = v.trim();
+                const el = document.querySelector(`input[name="${name}"][value="${cleanVal}"]`);
+                if(el) el.checked = true;
+            });
+        };
+
+        function populateReadonlyUserFields(k) {
+            if(k.isOffline) {
+                document.getElementById('ro_offline_toggle').checked = true;
+                document.getElementById('ro_supervisor_div').classList.remove('hidden');
+                setRadio('ro_supervisor_signoff', k.supervisorSignoff);
+            }
+
+            setRadio('ro_fully_implemented', k.implStatus);
+            setRadio('ro_k_type', k.kaizen_type);
+            setVal('ro_leader_name', k.leader_name);
+            setVal('ro_plant', k.plant);
+            setVal('ro_dept', k.department || k.dept);
+            setVal('ro_impl_date', k.implDate);
+            setVal('ro_work_area', k.workArea);
+            setVal('ro_product_group', k.product_group || k.group);
+            setVal('ro_process_name', k.process_name);
+            
+            const catContainer = document.getElementById('ro_category_tags');
+            if(k.category) { k.category.split(',').forEach(c => { catContainer.innerHTML += `<span class="tag shadow-sm">${escapeHtml(c.trim())}</span>`; }); }
+            
+            if(k.kaizen_type === 'Team' && k.team_members) {
+                document.getElementById('ro_team_container').style.display = 'block';
+                const memContainer = document.getElementById('ro_members_tags');
+                k.team_members.split(',').forEach(m => { memContainer.innerHTML += `<span class="tag shadow-sm">${escapeHtml(m.trim())}</span>`; });
+            }
+
+            setVal('ro_kaizen_theme', k.theme);
+            setVal('ro_before_desc', k.before_description);
+            setVal('ro_after_desc', k.after_description);
+            
+            const renderFile = (filename, containerId) => {
+                const container = document.getElementById(containerId);
+                if(!filename || filename === "No File") {
+                    container.innerHTML = `<div class="p-3 bg-slate-50 border border-slate-200 rounded text-center text-xs text-slate-400">No Attached File</div>`;
+                    return;
+                }
+                const url = `${API_BASE_URL}/uploads/${filename}`;
+                const ext = filename.split('.').pop().toLowerCase();
+                if(['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                    container.innerHTML = `<img src="${url}" class="img-preview mt-2" onclick="window.open('${url}')">`;
+                } else {
+                    container.innerHTML = `<button onclick="window.open('${url}')" class="mt-2 text-xs bg-white border border-slate-300 px-3 py-2 rounded text-slate-600 hover:text-blue-600 hover:border-blue-400 transition w-full"><i class="fa-solid fa-file-pdf text-rose-500 mr-2"></i> View Document</button>`;
+                }
+            };
+            renderFile(k.before_file_path, 'ro_before_img_container');
+            renderFile(k.after_file_path, 'ro_after_img_container');
+
+            setRadio('ro_benefit_type', k.benefitType);
+            if(k.benefitType === 'Monetary') {
+                document.getElementById('ro_monetary_section').classList.remove('hidden');
+                setRadio('ro_monetary_category', k.monetaryCategory);
+                
+                setVal('ro_base_metric', k.baseMetric);
+                setVal('ro_after_metric', k.afterMetric);
+                setVal('ro_imp_cost', k.implementationCost || k.expenditure_cost);
+                setVal('ro_quant_method_other', k.quantMethodOther);
+                document.getElementById('ro_calc_annual_saving').innerText = k.calcAnnualSaving || '0.00';
+            } else if(k.benefitType === 'Non-Monetary') {
+                document.getElementById('ro_non_monetary_section').classList.remove('hidden');
+                setRadio('ro_nm_impact', k.nmImpact);
+                setRadio('ro_nm_severity', k.nmSeverity);
+            }
+
+            setChecks('ro_pqcdsm_chk', k.pqcdsm);
+            setChecks('ro_sustain_chk', k.sustainability);
+            if(k.sustainability && k.sustainability.includes('Others') && k.sustainabilityOther) {
+                const othEl = document.getElementById('ro_sustain_other');
+                othEl.classList.remove('hidden'); othEl.value = k.sustainabilityOther;
+            }
+
+            setRadio('ro_sop_updated', k.sopUpdated);
+            if(k.replicability === 'No') {
+                setRadio('ro_replicability', 'No');
+                const repOth = document.getElementById('ro_replicability_reason');
+                repOth.classList.remove('hidden'); repOth.value = k.replicabilityReason;
+            } else {
+                setRadio('ro_replicability', k.replicability);
+            }
+        }
+
+        function populateReadonlyHODFields(k) {
+            setRadio('ro_h_ver', k.hodVerifiedBy);
+            setRadio('ro_h_doc', k.hodDocComplete);
+            setRadio('ro_h_ben', k.hodBenTypeConf);
+            setRadio('ro_h_mon_cat', k.hodMonCat);
+            setVal('ro_h_val_ann', k.hodValAnnSav);
+            setVal('ro_h_val_one', k.hodValOneTimeSav);
+            setVal('ro_h_val_cost', k.hodValImplCost);
+            setRadio('ro_h_tech', k.hodTechCorrect);
+            setRadio('ro_h_kra', k.hodKRAAlign);
+            setChecks('ro_h_pqc', k.hodPQCDSM);
+            setChecks('ro_h_sus', k.hodSustainability);
+            if(k.hodSustainability && k.hodSustainability.includes('Others') && k.hodSustainOther) {
+                const othEl = document.getElementById('ro_h_sus_oth');
+                othEl.classList.remove('hidden'); othEl.value = k.hodSustainOther;
+            }
+            
+            document.getElementById('k_hod_msg').innerText = escapeHtml(k.hod_evaluation?.comments || "-");
+        }
+
+        function renderHodScoreBox(k) {
+            const hodContainer = document.getElementById('hodEvalContainer');
+            const hodScores = k.hod_evaluation?.scores || {};
+            document.getElementById('displayHodTotal').innerText = k.hod_evaluation?.final_score || 0;
+            hodContainer.innerHTML = '';
+            if(Object.keys(hodScores).length > 0) {
+                for (const [key, points] of Object.entries(hodScores)) {
+                    hodContainer.innerHTML += `
+                        <div class="bg-white p-2 rounded border border-slate-200 flex justify-between items-center shadow-sm">
+                            <span class="text-slate-600 text-[10px] uppercase font-bold truncate pr-2">${escapeHtml(key.replace(/_/g, ' '))}</span>
+                            <span class="text-amber-700 font-mono text-xs font-bold bg-amber-50 px-1.5 py-0.5 rounded">${points}</span>
+                        </div>`;
+                }
+            } else { hodContainer.innerHTML = '<p class="text-slate-500 text-xs">No data.</p>'; }
+        }
+
+        function renderDynamicQuestions(criteria) {
+            const container = document.getElementById('dynamicQuestions');
+            container.innerHTML = '';
+            if(!criteria || criteria.length === 0) return;
+
+            criteria.forEach((q) => {
+                // 🐛 BUG FIX: Set to null instead of 0 to allow actual zero-point selections
+                currentScores[q.key] = null; 
+                let optionsHtml = '';
+                q.options.forEach(opt => {
+                    optionsHtml += `
+                        <div class="option-card p-2" onclick="selectOption('${q.key}', ${opt.points}, this)">
+                            <div class="flex justify-between items-center text-xs font-bold">
+                                <span>${escapeHtml(opt.label)}</span>
+                                <span class="pts-badge px-1.5 py-0.5 rounded text-[10px]">${opt.points}</span>
+                            </div>
+                        </div>`;
+                });
+
+                container.innerHTML += `
+                    <div>
+                        <h4 class="text-xs font-bold text-purple-700 mb-2 uppercase tracking-wider">${escapeHtml(q.label)}</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="row-${q.key}">
+                            ${optionsHtml}
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function selectOption(key, points, element) {
+            currentScores[key] = points;
+            
+            // Restrict selection to only ONE item inside the specific row
+            const parentRow = document.getElementById(`row-${key}`);
+            if(parentRow) {
+                parentRow.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+            }
+            
+            element.classList.add('selected');
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            // Nulls are treated as 0 for live math, but stay null in object until explicitly answered
+            const base = Object.values(currentScores).reduce((a, b) => a + (b || 0), 0);
+            document.getElementById('finalScore').innerText = base;
+        }
+
+        function submitEvaluation(statusStr) {
+            // 1. Validate Criteria Scoring
+            // 🐛 BUG FIX: Check strictly for null to verify if a question is totally unanswered
+            const missingScores = Object.values(currentScores).some(pts => pts === null);
+            if(missingScores) {
+                alert("Please answer all Criteria Scoring questions before submitting.");
+                return;
+            }
+
+            const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
+            const getVal = (id) => document.getElementById(id).value;
+            const getChecked = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value).join(', ');
+
+            // 2. Validate Committee Checklist (All are mandatory)
+            if(!getRadio('c_imp') || !getRadio('c_inn') || !getRadio('c_sus') || !getRadio('c_rep') || !getRadio('c_cost') || !getRadio('c_cat') || !getRadio('c_doc') || !getRadio('c_con') || !getRadio('c_award') || !getVal('c_ann_sav') || !getVal('c_one_sav')) {
+                alert("Please answer all mandatory Committee Assessment questions (A through E).");
+                return;
+            }
+
+            const btnApprove = document.getElementById('btnApprove');
+            btnApprove.disabled = true;
+            const originalText = btnApprove.innerHTML;
+            btnApprove.innerHTML = 'Processing...';
+
+            const payload = {
+                id: kaizenId,
+                status: statusStr,
+                committee_evaluation: {
+                    scores: currentScores,
+                    multiplier: 1.0, 
+                    final_score: document.getElementById('finalScore').innerText,
+                    evaluator: document.getElementById('scorerName').innerText,
+                    evaluator_id: JSON.parse(localStorage.getItem('currentUser')).emp_id,
+                    date: new Date().toISOString(),
+                    comments: document.getElementById('commMessage').value.trim() || "No comments",
+                    
+                    assessment: {
+                        impact: getRadio('c_imp'),
+                        innovativeness: getRadio('c_inn'),
+                        sustainment: getRadio('c_sus'),
+                        replicability: getRadio('c_rep'),
+                        costBenefit: getRadio('c_cost'),
+                        categoryMatch: getRadio('c_cat'),
+                        docComplete: getRadio('c_doc'),
+                        conflict: getRadio('c_con'),
+                        annualSaving: getVal('c_ann_sav'),
+                        oneTimeSaving: getVal('c_one_sav'),
+                        award: getRadio('c_award')
+                    }
+                }
+            };
+
+            const token = localStorage.getItem('jwt_token');
+            fetch(`${API_BASE_URL}/update-kaizen`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                body: JSON.stringify(payload) 
+            })
+            .then(res => res.json())
+            .then(res => { 
+                if(res.success) {
+                    alert("Evaluation Submitted Successfully!");
+                    window.location.replace("committee_pending.html");
+                } else {
+                    alert("Server error: " + (res.message || "Unknown"));
+                    btnApprove.disabled = false;
+                    btnApprove.innerHTML = originalText;
+                } 
+            })
+            .catch(err => {
+                alert("Network Error!");
+                btnApprove.disabled = false;
+                btnApprove.innerHTML = originalText;
+            });
+        }
+        
+        let viewMap = null;
+        let viewMarker = null;
+
+        function openViewMap(plantName, specificLoc) {
+            const modal = document.getElementById('viewMapModal');
+            modal.classList.add('show');
+            document.getElementById('viewMapLabel').innerText = `Viewing: ${escapeHtml(plantName)}`;
+
+            let lat = 12.862188, lng = 79.730272; 
+            let isSpecific = false;
+
+            if(specificLoc && specificLoc !== 'null') {
+                const parts = specificLoc.split(',');
+                if(parts.length === 2) { 
+                    lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); isSpecific = true;
+                }
+            } else if (window.plantObjects) {
+                const plantObj = window.plantObjects.find(p => (typeof p === 'object' ? p.name : p) === plantName);
+                if (plantObj && plantObj.lat && plantObj.lng) {
+                    lat = parseFloat(plantObj.lat); lng = parseFloat(plantObj.lng);
+                }
+            }
+
+            document.getElementById('viewMapCoords').innerText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+            if (!viewMap) {
+                viewMap = L.map('viewMapContainer', { zoomControl: false }).setView([lat, lng], 16);
+                L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(viewMap);
+            }
+
+            setTimeout(() => {
+                viewMap.invalidateSize();
+                viewMap.flyTo([lat, lng], 18, { duration: 1.5 });
+                if(viewMarker) viewMap.removeLayer(viewMarker);
+                viewMarker = L.marker([lat, lng]).addTo(viewMap).bindPopup(isSpecific ? "<b>Exact Location Pinned</b>" : `<b>${escapeHtml(plantName)} Plant</b><br>Standard Location`).openPopup();
+            }, 200);
+        }
+
+        function closeViewMap() { document.getElementById('viewMapModal').classList.remove('show'); }
+
+    </script>
+</body>
+</html>

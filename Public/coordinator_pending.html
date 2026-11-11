@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinator Dashboard | L&T Valves</title>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #cffafe; border-radius: 40% 60% 70% 30%; animation: float 10s infinite alternate; } /* Soft Cyan */
+        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #dbeafe; border-radius: 60% 40% 30% 70%; animation: float 12s infinite alternate-reverse; } /* Soft Blue */
+        @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(20px, 40px); } }
+
+        /* 🪟 Light Glass Panel */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.05);
+        }
+        
+        /* 📋 Tabs (Light Mode) */
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .tab-btn:hover { color: #1e293b; background: rgba(0,0,0,0.02); }
+        .tab-btn.active {
+            color: #0284c7; /* Cyan/Blue Mix */
+            border-bottom-color: #0284c7;
+            background: #ffffff;
+        }
+        
+        /* Counts in Tabs */
+        .count-badge {
+            margin-left: 8px;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active .count-badge { background: #0284c7; color: #ffffff; }
+
+        /* Status Badges */
+        .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .status-pending { background: #ecfeff; color: #0891b2; border: 1px solid #a5f3fc; }
+        .status-back { background: #fefce8; color: #d97706; border: 1px solid #fde047; }
+        .status-rejected { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
+        .status-approved { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
+
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* 🔍 Search Popup Styles (Light) */
+        .search-trigger { margin-left: 8px; padding: 4px; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+        .search-trigger:hover, .search-trigger.active { color: #0284c7; background: #e0f2fe; }
+        .search-popup { position: absolute; top: 100%; left: 0; z-index: 60; background: #ffffff; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 180px; display: none; margin-top: 5px; animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .search-popup.show { display: block; }
+        .popup-input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
+        .popup-input:focus { border-color: #0284c7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.1); }
+        th { position: relative; } /* Needed for absolute positioning of popup */
+        @keyframes popIn { from { opacity: 0; transform: translateY(-5px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-hidden text-slate-800">
+    
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-40 glass-panel border-b border-slate-200 px-8 py-4 m-4 mb-8 flex items-center justify-between shadow-sm bg-white/90">
+        <div class="flex items-center gap-4">
+            <a href="index" class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-cyan-50 border border-slate-200 transition group">
+                <i class="fa-solid fa-arrow-left text-slate-500 group-hover:text-cyan-600 transition"></i>
+            </a>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-wide text-slate-900">Coordinator <span class="text-cyan-600">Console</span></h1>
+                <p class="text-xs text-slate-500 font-medium">Review & Reward Allocation</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right hidden md:block">
+                <p class="text-xs text-slate-500 font-bold uppercase">Logged in as</p>
+                <p class="text-sm font-bold text-cyan-700" id="coord-name">Coordinator</p>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-md">C</div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 pb-12 h-[calc(100vh-140px)] flex flex-col">
+        
+        <div class="flex justify-between items-end mb-4">
+            <div class="flex gap-4 border-b border-slate-200 w-full">
+                <button class="tab-btn active" onclick="filterData('Pending', this)">
+                    <i class="fa-solid fa-hourglass-half mr-2"></i> Pending Review 
+                    <span id="countPending" class="count-badge">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterData('Recheck', this)">
+                    <i class="fa-solid fa-rotate mr-2"></i> HOK Updates 
+                    <span id="countRecheck" class="count-badge">0</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="glass-panel flex-1 overflow-hidden flex flex-col bg-white">
+            <div class="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
+                <table class="w-full text-left border-collapse" id="coordTable">
+                    <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>ID</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(0, this)"></i></div>
+                                <div class="search-popup" id="popup-0"><input type="text" class="popup-input" placeholder="Filter ID..." onkeyup="applyFilters(0)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>Date</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(1, this)"></i></div>
+                                <div class="search-popup" id="popup-1"><input type="text" class="popup-input" placeholder="Filter Date..." onkeyup="applyFilters(1)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>Leader</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(2, this)"></i></div>
+                                <div class="search-popup" id="popup-2"><input type="text" class="popup-input" placeholder="Filter Leader..." onkeyup="applyFilters(2)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>Theme</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(3, this)"></i></div>
+                                <div class="search-popup" id="popup-3"><input type="text" class="popup-input" placeholder="Filter Theme..." onkeyup="applyFilters(3)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>Status</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(4, this)"></i></div>
+                                <div class="search-popup" id="popup-4"><input type="text" class="popup-input" placeholder="Filter Status..." onkeyup="applyFilters(4)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <div class="flex items-center"><span>Sub Status</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(5, this)"></i></div>
+                                <div class="search-popup" id="popup-5"><input type="text" class="popup-input" placeholder="Filter Sub Status..." onkeyup="applyFilters(5)"></div>
+                            </th>
+                            <th class="p-4 text-xs font-bold text-center text-slate-500 uppercase tracking-wider border-b border-slate-200">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coordTableBody" class="divide-y divide-slate-100 text-sm text-slate-700 bg-white">
+                        </tbody>
+                </table>
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 font-medium">
+                <span id="recordCount">Loading...</span>
+                <span>L&T Valves Kaizen System</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 🔒 ENTERPRISE SECURITY LOGIC ---
+
+        // 1. Better Guard to prevent back-button loops
+        if (!currentUser || !currentUser.is_coordinator) {
+            alert("Access Denied: You do not have Coordinator permissions.");
+            window.location.replace("index.html");
+        }
+        
+        // Set name in top right
+        const nameEl = document.getElementById('coord-name');
+        if (nameEl && currentUser) nameEl.innerText = `${currentUser.fname} ${currentUser.lname}`;
+
+        // 2. XSS Sanitizer for rendering DB data
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        let allKaizens = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+        });
+
+        async function fetchData() {
+            const tbody = document.getElementById('coordTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium animate-pulse">Loading...</td></tr>';
+            
+            try {
+                // 3. Bulletproof Fetch with JSON parsing crash prevention
+                const response = await fetch(`${API_BASE_URL}/get-kaizens`);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                allKaizens = await response.json();
+                
+                updateCounts();
+                
+                // Initial Load: Pending Tab
+                filterData('Pending', document.querySelector('.tab-btn.active'));
+
+            } catch (error) {
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-rose-500 font-bold">Connection Failed. Check Server.</td></tr>`;
+            }
+        }
+
+        // Calculate counts for tabs
+        function updateCounts() {
+            const pendingCount = allKaizens.filter(k => 
+                (k.status === "Committee Approved" || k.status === "Approved by Committee")
+            ).length;
+
+            const recheckCount = allKaizens.filter(k => 
+                k.status === "Waiting for Final Approval" && 
+                (k.subStatus === "Send by hok to Review" || k.subStatus === "Rejected by HOK" || k.subStatus === "Approved by hok")
+            ).length;
+
+            document.getElementById('countPending').innerText = pendingCount;
+            document.getElementById('countRecheck').innerText = recheckCount;
+        }
+
+        function filterData(tab, btn) {
+            // Update Tab UI
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+
+            let filteredData = allKaizens.filter(k => {
+                const s = k.status || '';
+                const sub = k.subStatus || '';
+
+                if (tab === 'Pending') {
+                    // TAB 1: Initial Pending Review (Fresh from Committee)
+                    return s === "Committee Approved" || s === "Approved by Committee";
+                } 
+                else if (tab === 'Recheck') {
+                    // TAB 2: Updates from HOK
+                    return s === "Waiting for Final Approval" && 
+                           (sub === "Send by hok to Review" || sub === "Rejected by HOK" || sub === "Approved by hok");
+                }
+                return false;
+            });
+
+            // --- SORTING LOGIC ---
+            filteredData.sort((a, b) => {
+                if (tab === 'Pending') {
+                    // Sort by: Committee Date -> HOD Date -> Creation Date (Newest First)
+                    const dateA = new Date(a.committee_evaluation?.date || a.hod_evaluation?.date || a.date);
+                    const dateB = new Date(b.committee_evaluation?.date || b.hod_evaluation?.date || b.date);
+                    return dateB - dateA;
+                } else {
+                    // Sort by: HOK Action Date (Newest First)
+                    const dateA = new Date(a.hok_action_date || a.coordinator_action_date || a.date);
+                    const dateB = new Date(b.hok_action_date || b.coordinator_action_date || b.date);
+                    return dateB - dateA;
+                }
+            });
+
+            renderTable(filteredData);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('coordTableBody');
+            const countEl = document.getElementById('recordCount');
+            tbody.innerHTML = '';
+            countEl.innerText = `${data.length} Records Found`;
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-12 text-center text-slate-500 italic font-medium">No records found for this category.</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition group";
+                
+                let dateStr = item.date ? new Date(item.date).toLocaleDateString() : '-';
+                
+                // Badge Logic
+                let subBadgeClass = "bg-slate-100 text-slate-500 border-slate-200";
+                if(item.subStatus === "Send by hok to Review") subBadgeClass = "status-back";
+                if(item.subStatus === "Rejected by HOK") subBadgeClass = "status-rejected";
+                if(item.subStatus === "Approved by hok") subBadgeClass = "status-approved";
+
+                // 🔒 PRODUCTION FIX: Added escapeHtml to user-generated fields
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-cyan-600 font-bold">${item.id}</td>
+                    <td class="p-4">${dateStr}</td>
+                    <td class="p-4 text-slate-800 font-bold">${escapeHtml(item.leader_name)}</td>
+                    
+                    <td class="p-4">
+                        <div class="truncate max-w-[150px] cursor-help font-medium" title="${escapeHtml(item.theme || '')}">${escapeHtml(item.theme || '-')}</div>
+                    </td>
+                    
+                    <td class="p-4"><span class="status-badge status-pending">${escapeHtml(item.status)}</span></td>
+                    <td class="p-4"><span class="status-badge ${subBadgeClass}">${escapeHtml(item.subStatus || '-')}</span></td>
+                    <td class="p-4 text-center">
+                        <a href="coordinator_review?id=${item.id}" 
+                        class="inline-flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 px-3 py-1.5 rounded text-xs font-bold transition no-underline">
+                            Open
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- FILTER LOGIC ---
+        function toggleSearch(index, icon) {
+            document.querySelectorAll('.search-popup').forEach((p, i) => { if(i !== index) p.classList.remove('show'); });
+            document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            const popup = document.getElementById(`popup-${index}`);
+            popup.classList.toggle('show');
+            icon.classList.toggle('active');
+            if(popup.classList.contains('show')) popup.querySelector('input').focus();
+        }
+
+        function applyFilters(colIndex) {
+            const input = document.getElementById(`popup-${colIndex}`).querySelector('input');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("coordTable");
+            const tr = table.getElementsByTagName("tr");
+
+            // Loop through all table rows, and hide those who don't match the search query
+            for (let i = 1; i < tr.length; i++) { 
+                const td = tr[i].getElementsByTagName("td")[colIndex];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        // Close popup when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('th')) {
+                document.querySelectorAll('.search-popup').forEach(p => p.classList.remove('show'));
+                document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            }
+        });
+    </script>
+</body>
+</html>

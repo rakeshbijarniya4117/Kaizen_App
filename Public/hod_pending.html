@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <title>HOD Pending | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #dbeafe; border-radius: 40% 60% 70% 30%; }
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+
+        /* 🪟 Light Glass Container */
+        .glass-container { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(25px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1.5rem; 
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); 
+            overflow: visible; 
+        }
+
+        /* 📋 Tabs (Light Mode) */
+        .tab-btn {
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #64748b;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .tab-btn:hover { color: #1e293b; background: rgba(0,0,0,0.02); }
+        .tab-btn.active {
+            background: #ffffff; 
+            color: #2563eb; 
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .count-badge {
+            background: #e2e8f0;
+            color: #64748b;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active .count-badge { background: #2563eb; color: #ffffff; }
+
+        /* 📊 Table Styles (Light Mode) */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th { 
+            text-align: left; padding: 1.5rem 1rem; color: #64748b; font-size: 0.7rem; font-weight: 800; 
+            text-transform: uppercase; letter-spacing: 0.08em; 
+            border-bottom: 2px solid #e2e8f0; background: #f8fafc; 
+            position: relative; 
+            white-space: nowrap;
+        }
+        td { padding: 1.25rem 1rem; color: #334155; font-size: 0.9rem; vertical-align: middle; border-bottom: 1px solid #f1f5f9; transition: background 0.3s; }
+        tr:hover td { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+
+        /* 🖱️ Actions */
+        .action-btn { padding: 8px 16px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; transition: all 0.2s; display: inline-flex; align-items: center; cursor: pointer; }
+        .btn-eval { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .btn-eval:hover { background: #2563eb; color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+        
+        .btn-rejected { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
+        .btn-rejected:hover { background: #e11d48; color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.2); }
+
+        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+        /* 🔍 Search Popup Styles */
+        .search-trigger { margin-left: 8px; padding: 4px; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+        .search-trigger:hover, .search-trigger.active { color: #2563eb; background: #eff6ff; }
+        .search-popup { position: absolute; top: 70%; left: 0; z-index: 60; background: #ffffff; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 180px; display: none; animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .search-popup.show { display: block; }
+        .popup-input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
+        .popup-input:focus { border-color: #3b82f6; }
+        @keyframes popIn { from { opacity: 0; transform: translateY(-5px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .animate-gradient-text { background-size: 200% auto; animation: shine 4s linear infinite; }
+        @keyframes shine { to { background-position: 200% center; } }
+    </style>
+</head>
+<body class="min-h-screen relative">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-50 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm bg-white/90">
+        <a href="index" class="text-slate-500 hover:text-blue-600 transition flex items-center group font-medium">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center mr-3 group-hover:bg-blue-50 transition-all duration-300">
+                <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-1 transition"></i>
+            </div>
+            <span class="font-bold tracking-wide">Back to Home</span>
+        </a>
+        <h1 class="text-2xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500 animate-gradient-text">HOD<span class="text-slate-800 font-light">ZONE</span></h1>
+        <div class="w-20"></div>
+    </nav>
+
+    <main class="max-w-[1400px] mx-auto px-6 py-10">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-6 slide-up">
+            <div>
+                <h2 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Evaluations</h2>
+                <p class="text-slate-500 text-sm font-medium">Manage pending approvals and review rejected items.</p>
+            </div>
+            <div class="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                <button onclick="switchTab('pending')" class="tab-btn active" id="tab-pending"><i class="fa-regular fa-clock mr-2"></i> Pending <span class="count-badge" id="count-pending">0</span></button>
+                <button onclick="switchTab('rejected')" class="tab-btn" id="tab-rejected"><i class="fa-solid fa-ban mr-2"></i> Rejected <span class="count-badge" id="count-rejected">0</span></button>
+            </div>
+        </div>
+
+        <div class="glass-container slide-up" style="animation-delay: 0.1s;">
+            <div class="overflow-x-auto" style="min-height: 400px;">
+                <table class="w-full text-left" id="hodTable">
+                    <thead>
+                        <tr>
+                            <th class="w-24">
+                                <div class="flex items-center"><span>ID</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(0, this)"></i></div>
+                                <div class="search-popup" id="popup-0"><input type="text" class="popup-input" placeholder="Search ID..." onkeyup="applyFilters(0)"></div>
+                            </th>
+                            
+                            <th>
+                                <div class="flex items-center"><span>Theme</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(1, this)"></i></div>
+                                <div class="search-popup" id="popup-1"><input type="text" class="popup-input" placeholder="Search Theme..." onkeyup="applyFilters(1)"></div>
+                            </th>
+                            
+                            <th>
+                                <div class="flex items-center"><span>Leader</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(2, this)"></i></div>
+                                <div class="search-popup" id="popup-2"><input type="text" class="popup-input" placeholder="Filter Leader..." onkeyup="applyFilters(2)"></div>
+                            </th>
+                            
+                            <th>
+                                <div class="flex items-center"><span>Dept</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(3, this)"></i></div>
+                                <div class="search-popup" id="popup-3"><input type="text" class="popup-input" placeholder="Filter Dept..." onkeyup="applyFilters(3)"></div>
+                            </th>
+                            
+                            <th>
+                                <div class="flex items-center"><span>Status</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(4, this)"></i></div>
+                                <div class="search-popup" id="popup-4"><input type="text" class="popup-input" placeholder="Filter Status..." onkeyup="applyFilters(4)"></div>
+                            </th>
+                            
+                            <th>
+                                <div class="flex items-center"><span>Date</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(5, this)"></i></div>
+                                <div class="search-popup" id="popup-5"><input type="text" class="popup-input" placeholder="Filter Date..." onkeyup="applyFilters(5)"></div>
+                            </th>
+                            
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 🔒 ENTERPRISE SECURITY LOGIC ---
+
+        // 1. Better Guard to prevent back-button loops
+        if (!currentUser || !currentUser.is_hod) { 
+            alert("Access Denied: HOD Only"); 
+            window.location.replace("index.html"); 
+        }
+
+        // 2. XSS Sanitizer for rendering DB data
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        let allKaizens = [];
+        let currentTab = 'pending';
+
+        document.addEventListener('DOMContentLoaded', fetchData);
+
+        async function fetchData() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium animate-pulse">Loading...</td></tr>';
+
+            try {
+                // 3. Bulletproof Fetch with JSON parsing crash prevention
+                const res = await fetch(`${API_BASE_URL}/get-kaizens`);
+                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+                
+                const data = await res.json();
+                
+                // --- UPDATE: Dual Filter (Department + Plant) ---
+                const myDept = currentUser.department || currentUser.dept;
+                const myPlant = currentUser.plant || currentUser.location; // Handles 'plant' or 'location' key
+
+                if (myDept && myPlant) {
+                    // Filter: Must match BOTH Department AND Plant
+                    allKaizens = data.filter(k => {
+                        const kaizenDept = k.department || k.dept;
+                        const kaizenPlant = k.plant || k.location;
+                        
+                        // Strict check for both
+                        return (kaizenDept === myDept) && (kaizenPlant === myPlant);
+                    });
+                } else {
+                    console.warn("HOD User missing Department or Plant info. Showing no data.");
+                    allKaizens = [];
+                }
+                // ---------------------------------------
+
+                // SORTING: New to Old (Descending by ID)
+                allKaizens.sort((a, b) => b.id - a.id);
+
+                updateCounts();
+                renderTable();
+
+            } catch(e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-rose-500 font-bold">Error loading data. Check connection.</td></tr>';
+            }
+        }
+
+        function updateCounts() {
+            const pending = allKaizens.filter(k => k.status.includes("Waiting for HOD")).length;
+            const rejected = allKaizens.filter(k => k.status.includes("Rejected by HOD")).length;
+            document.getElementById('count-pending').innerText = pending;
+            document.getElementById('count-rejected').innerText = rejected;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const filteredData = allKaizens.filter(k => {
+                if (currentTab === 'pending') return k.status.includes("Waiting for HOD");
+                if (currentTab === 'rejected') return k.status.includes("Rejected by HOD");
+                return false;
+            });
+
+            if (filteredData.length === 0) {
+                // Better error message showing what we are filtering by
+                const myPlant = currentUser.plant || currentUser.location || "your plant";
+                const myDept = currentUser.department || currentUser.dept || "your department";
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-500 py-16 italic font-medium">No items found for ${escapeHtml(myDept)} at ${escapeHtml(myPlant)}.</td></tr>`;
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                const rawName = item.leader_name || "Unknown";
+                const nameOnly = rawName.split('(')[0].trim();
+                const deptVal = item.department || item.dept || '-';
+
+                let badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+                let icon = '<i class="fa-regular fa-clock mr-1"></i>';
+                
+                if (item.status.includes("Rejected")) {
+                    badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+                    icon = '<i class="fa-solid fa-circle-xmark mr-1"></i>';
+                }
+
+                let actionBtn = '';
+                if (currentTab === 'pending') {
+                    actionBtn = `<a href="hod_evaluation?id=${item.id}" class="action-btn btn-eval">Evaluate <i class="fa-solid fa-arrow-right ml-2"></i></a>`;
+                } else {
+                    actionBtn = `<a href="hod_evaluation?id=${item.id}" class="action-btn btn-rejected">Re-Evaluate <i class="fa-solid fa-rotate-right ml-2"></i></a>`;
+                }
+
+                // 🔒 PRODUCTION FIX: Escaping all user-generated data (theme, name, dept)
+                tr.innerHTML = `
+                    <td class="font-mono text-blue-600 font-bold text-xs">KZN-${item.id}</td>
+                    <td class="font-bold text-slate-800">
+                        <div class="truncate max-w-[250px]" title="${escapeHtml(item.theme)}">${escapeHtml(item.theme)}</div>
+                    </td>
+                    <td>
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold mr-3 text-slate-600 border border-slate-200">${escapeHtml(nameOnly).charAt(0)}</div>
+                            <span class="text-sm font-bold text-slate-700">${escapeHtml(nameOnly)}</span>
+                        </div>
+                    </td>
+                    <td><span class="text-xs text-slate-600 font-medium border border-slate-200 px-2 py-1 rounded bg-slate-50">${escapeHtml(deptVal)}</span></td>
+                    <td><span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${badgeClass}">${icon} ${item.status}</span></td>
+                    <td class="text-xs text-slate-500 font-mono font-medium">${item.date}</td>
+                    <td class="text-center">${actionBtn}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- FILTERING LOGIC ---
+        function toggleSearch(index, icon) {
+            document.querySelectorAll('.search-popup').forEach((p, i) => { if(i !== index) p.classList.remove('show'); });
+            document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            
+            const popup = document.getElementById(`popup-${index}`);
+            popup.classList.toggle('show');
+            icon.classList.toggle('active');
+            if(popup.classList.contains('show')) popup.querySelector('input').focus();
+        }
+
+        function applyFilters(colIndex) {
+            const input = document.getElementById(`popup-${colIndex}`).querySelector('input');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("hodTable");
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) { // Skip header
+                const td = tr[i].getElementsByTagName("td")[colIndex];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        // Close popups when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('th')) {
+                document.querySelectorAll('.search-popup').forEach(p => p.classList.remove('show'));
+                document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active'));
+            }
+        });
+    </script>
+</body>
+</html>

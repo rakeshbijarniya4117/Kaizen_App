@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticating | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matching Dashboards) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 10s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #cffafe; border-radius: 40% 60% 70% 30%; } /* Soft Cyan */
+        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #dbeafe; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Blue */
+        @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(20px, 40px); } }
+
+        /* 🪟 Light Glass Panel */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 20px 25px -5px rgba(0,0,0,0.05); 
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Loading Spinner Animation */
+        .loader-ring {
+            width: 3.5rem;
+            height: 3.5rem;
+            border: 4px solid #e2e8f0;
+            border-top-color: #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Fade In Animation */
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen relative overflow-hidden">
+    
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="glass-panel p-10 w-full max-w-md mx-4 text-center fade-in">
+        
+        <div class="mb-8 border-b border-slate-100 pb-6">
+            
+            <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">OPEX</h1>
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Continuous Improvement</p>
+        </div>
+
+        <div id="loadingState" class="space-y-5 py-2">
+            <div class="loader-ring"></div>
+            <div>
+                <p class="text-slate-800 font-bold text-lg">Authenticating Identity...</p>
+                <p class="text-slate-500 text-sm mt-1">Connecting securely to L&T Valves network.</p>
+            </div>
+        </div>
+
+        <div id="errorState" class="hidden space-y-4 py-2 fade-in">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-50 border border-rose-100 mb-2">
+                <i class="fa-solid fa-shield-halved text-3xl text-rose-500"></i>
+            </div>
+            <h3 class="text-rose-600 font-extrabold text-xl" id="errorTitle">Access Denied</h3>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-inner text-left">
+                <p id="errorMessage" class="text-slate-600 text-sm font-medium leading-relaxed text-center">
+                    A system error occurred.
+                </p>
+            </div>
+            
+            <button onclick="location.reload()" class="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold transition shadow-md text-sm flex items-center justify-center">
+                <i class="fa-solid fa-rotate-right mr-2"></i> Try Again
+            </button>
+            <p class="text-[10px] text-slate-400 font-medium mt-3">If this issue persists, please contact IT Support.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Force ALL traffic to go through the IIS Security Guard
+        const SERVER_URL = window.location.origin; 
+
+        window.onload = async () => { 
+            // 1. If already securely logged in, jump straight to the dashboard
+            if (localStorage.getItem('currentUser') && localStorage.getItem('jwt_token')) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            // Wipe any old/corrupted data just in case
+            localStorage.removeItem('currentUser'); 
+            localStorage.removeItem('jwt_token'); 
+
+            const loadingState = document.getElementById('loadingState');
+            const errorState = document.getElementById('errorState');
+            const errorTitle = document.getElementById('errorTitle');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // 🧠 SMART ERROR HANDLER: Translates technical jargon into plain English
+            function showSmartError(title, message) {
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+                errorTitle.innerText = title;
+                errorMessage.innerText = message;
+            }
+
+            try {
+                // Step 1: Ping the IIS server to grab Windows Credentials
+                const ssoResponse = await fetch(`${SERVER_URL}/sso.aspx`, { 
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include' 
+                });
+                
+                const rawText = await ssoResponse.text();
+
+                try {
+                    // Step 2: Try to read the data
+                    const ssoData = JSON.parse(rawText);
+                    
+                    if (ssoData.success && ssoData.user) {
+                        
+                        // Step 3: Send the encrypted hash to our secure Node.js backend
+                        const verifyResponse = await fetch(`${SERVER_URL}/api/sso-verify`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(ssoData)
+                        });
+                        
+                        const verifyData = await verifyResponse.json();
+
+                        if (verifyData.success) {
+                            // 🎉 SUCCESS! Save data and redirect beautifully
+                            localStorage.setItem('currentUser', JSON.stringify(verifyData.user));
+                            if (verifyData.token) localStorage.setItem('jwt_token', verifyData.token); 
+                            
+                            loadingState.innerHTML = `
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 mb-2">
+                                    <i class="fa-solid fa-check text-3xl text-emerald-500"></i>
+                                </div>
+                                <h3 class="text-emerald-600 font-extrabold text-xl mt-2">Identity Verified!</h3>
+                                <p class="text-slate-500 text-sm mt-1 font-medium">Redirecting to dashboard...</p>
+                            `;
+                            setTimeout(() => window.location.replace("/index"), 1000);
+                        } else {
+                            // DB Error: User is on the network, but not registered in the Kaizen system
+                            showSmartError("Account Not Found", verifyData.message || "Your employee ID is not registered in the Kaizen platform. Please contact the administrator.");
+                        }
+                    } else {
+                        // Edge case: Parsed JSON, but missing user data
+                        showSmartError("Network Verification Failed", "We could not detect your Windows Identity. Please make sure you are logged into your corporate account.");
+                    }
+                } catch (parseError) {
+                    // IIS Error: The server returned HTML (like a 401 Unauthorized page) instead of JSON
+                    console.error("IT Debug Info - Raw Response:", rawText.substring(0, 200));
+                    
+                    if (ssoResponse.status === 401 || ssoResponse.status === 403) {
+                        showSmartError("Authentication Blocked", "Your browser did not automatically send your Windows credentials. Please try using Microsoft Edge or Google Chrome while connected to the company network.");
+                    } else {
+                        showSmartError("Configuration Error", "The authentication server is currently misconfigured or unreachable. Please try again in a few minutes.");
+                    }
+                }
+            } catch (err) {
+                // Network Error: The server is entirely offline or unreachable
+                console.error("IT Debug Info - Fetch Error:", err);
+                showSmartError("Connection Offline", "We could not reach the server. Please check your internet connection, office Wi-Fi, or corporate VPN and try again.");
+            }
+        };
+    </script>
+</body>
+</html>

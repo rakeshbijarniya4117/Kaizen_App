@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> <script src="auth.js"></script>   <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #0f172a; color: #fff; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; }
+        .input-field { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 0.75rem; border-radius: 0.5rem; width: 100%; transition: all 0.3s; }
+        .input-field:focus { outline: none; border-color: #818cf8; background: rgba(0, 0, 0, 0.5); }
+        .tab-btn.active { background: #4f46e5; color: white; border-color: #818cf8; box-shadow: 0 0 15px rgba(79, 70, 229, 0.4); }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #1e293b; } ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        table { w-full border-collapse: collapse; } th { text-align: left; padding: 1rem; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative; } td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; } tr:hover { background: rgba(255,255,255,0.02); }
+        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
+        .search-trigger { margin-left: 8px; padding: 4px; border-radius: 4px; color: #475569; cursor: pointer; transition: all 0.2s; } .search-trigger:hover, .search-trigger.active { color: #818cf8; background: rgba(99, 102, 241, 0.1); } .search-popup { position: absolute; top: 80%; left: 0; z-index: 60; background: #1e293b; border: 1px solid #475569; padding: 8px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); width: 180px; display: none; } .search-popup.show { display: block; } .popup-input { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; outline: none; } .popup-input:focus { border-color: #818cf8; }
+        .crit-tab-btn.active { background-color: #4f46e5; color: white; border-color: #818cf8; }
+        .gallery-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; overflow: hidden; } .gallery-img { height: 120px; width: 100%; object-fit: cover; }
+		/* Drag and Drop Styles */
+		.draggable-item { cursor: grab; transition: transform 0.2s, box-shadow 0.2s; }
+		.draggable-item:active { cursor: grabbing; transform: scale(0.98); opacity: 0.8; }
+		.dragging { opacity: 0.4; }
+		.drag-handle { cursor: grab; padding: 0.5rem; color: #64748b; }
+		.drag-handle:hover { color: #fff; }
+	</style>
+</head>
+<body class="min-h-screen flex">
+    
+    <script>
+        // --- 🔒 SECURITY GUARD ---
+        if (!currentUser || !currentUser.is_admin) {
+            alert("Access Denied: Administrator Only.");
+            window.location.replace("index.html"); // 🔒 PRODUCTION FIX: Replace instead of href
+        }
+
+        // --- 🔒 XSS SANITIZER ---
+        function escapeHtml(text) {
+            if (!text && text !== 0) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+
+    <aside class="w-64 bg-slate-900 border-r border-white/10 flex flex-col fixed h-full z-20">
+        <div class="h-20 flex items-center px-6 border-b border-white/10">
+            <h1 class="text-xl font-bold tracking-wider"><span class="text-indigo-400">ADMIN</span>PANEL</h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="switchTab('users')" class="tab-btn active w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center"><i class="fa-solid fa-users w-8"></i> User Management</button>
+            <button onclick="switchTab('master')" class="tab-btn w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center"><i class="fa-solid fa-database w-8"></i> Master Data</button>
+            <button onclick="switchTab('criteria')" class="tab-btn w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center"><i class="fa-solid fa-clipboard-list w-8"></i> Evaluation Criteria</button>
+            <button onclick="switchTab('gallery')" class="tab-btn w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center"><i class="fa-solid fa-images w-8"></i> Gallery Manager</button>
+            <button onclick="switchTab('announcements')" class="tab-btn w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center"><i class="fa-solid fa-bullhorn w-8"></i> Announcements</button>
+            <a href="view_kaizens" class="w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center mt-auto"><i class="fa-solid fa-arrow-left w-8"></i> Exit to App</a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8">
+        <div id="users-tab" class="space-y-6 fade-in">
+            <div class="flex justify-between items-center"><h2 class="text-2xl font-bold">User Management</h2><div class="flex gap-3"><button onclick="downloadTemplate()" class="bg-slate-700 hover:bg-slate-600 text-white w-10 h-10 rounded-lg flex items-center justify-center transition shadow-lg" title="Download Excel Template"><i class="fa-solid fa-download"></i></button><input type="file" id="fileUpload" class="hidden" accept=".csv" onchange="uploadUsers()"><button onclick="document.getElementById('fileUpload').click()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition flex items-center text-sm"><i class="fa-solid fa-file-excel mr-2"></i> Import Users</button><button onclick="clearUserForm()" class="text-sm text-indigo-400 hover:text-white flex items-center"><i class="fa-solid fa-plus mr-1"></i> Reset Form</button></div></div>
+            <div class="glass-panel p-8">
+                <h3 class="text-lg font-semibold mb-4 text-indigo-300" id="formTitle">Create New User</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div><label class="text-xs text-gray-400">Employee ID *</label><input type="text" id="empid" class="input-field" placeholder="Unique ID"></div>
+                    <div><label class="text-xs text-gray-400">First Name *</label><input type="text" id="fname" class="input-field"></div>
+                    <div><label class="text-xs text-gray-400">Last Name (Optional)</label><input type="text" id="lname" class="input-field"></div>
+                    <div><label class="text-xs text-gray-400">Email ID *</label><input type="email" id="email" class="input-field"></div>
+                    <div><label class="text-xs text-gray-400">Date of Birth *</label><input type="date" id="dob" class="input-field text-gray-400"></div>
+                    <div><label class="text-xs text-gray-400">Plant *</label><select id="user_plant" class="input-field bg-slate-800"><option>Loading...</option></select></div>
+                    <div><label class="text-xs text-gray-400">Department *</label><select id="user_dept" class="input-field bg-slate-800"><option>Loading...</option></select></div>
+                    <div><label class="text-xs text-gray-400">Password</label><input type="text" id="form_password" class="input-field" placeholder="Default: 1a2b3z4d5y6q"></div>
+                </div>
+                <div class="mt-6 border-t border-white/10 pt-4"><label class="text-xs text-gray-400 block mb-2">Role Permissions</label><div class="flex flex-wrap gap-6"><label class="flex items-center cursor-pointer select-none"><input type="checkbox" id="is_admin" class="w-5 h-5 accent-red-500 rounded"><span class="ml-2 text-sm text-red-300">Admin</span></label><label class="flex items-center cursor-pointer select-none"><input type="checkbox" id="is_hod" class="w-5 h-5 accent-orange-500 rounded"><span class="ml-2 text-sm text-orange-300">Head of Department</span></label><label class="flex items-center cursor-pointer select-none"><input type="checkbox" id="is_committee" class="w-5 h-5 accent-purple-500 rounded"><span class="ml-2 text-sm text-purple-300">Kaizen Committee Member</span></label><label class="flex items-center cursor-pointer select-none"><input type="checkbox" id="is_coordinator" class="w-5 h-5 accent-cyan-500 rounded"><span class="ml-2 text-sm text-cyan-300">Kaizen Coordinator</span></label><label class="flex items-center cursor-pointer select-none"><input type="checkbox" id="is_hok" class="w-5 h-5 accent-pink-500 rounded"><span class="ml-2 text-sm text-pink-300">Head of Kaizen Committee</span></label></div></div>
+                <div class="mt-8 flex space-x-4"><button onclick="saveUser()" id="saveUserBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-8 rounded-lg font-bold shadow-lg transition">Create User</button><span id="editModeIndicator" class="hidden text-yellow-400 text-sm flex items-center"><i class="fa-solid fa-pen mr-2"></i> Editing Mode</span></div>
+            </div>
+            <div class="glass-panel overflow-visible">
+                <div class="overflow-x-auto" style="min-height: 400px;">
+                    <table class="w-full text-left" id="userTable">
+                        <thead class="bg-slate-800">
+                            <tr><th><div class="flex items-center"><span>Emp ID</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(0, this)"></i></div><div class="search-popup" id="popup-0"><input type="text" class="popup-input" placeholder="Search ID..." onkeyup="filterTable(0)"></div></th><th><div class="flex items-center"><span>Name</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(1, this)"></i></div><div class="search-popup" id="popup-1"><input type="text" class="popup-input" placeholder="Search Name..." onkeyup="filterTable(1)"></div></th><th><div class="flex items-center"><span>Email</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(2, this)"></i></div><div class="search-popup" id="popup-2"><input type="text" class="popup-input" placeholder="Search Email..." onkeyup="filterTable(2)"></div></th><th><div class="flex items-center"><span>Role</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(3, this)"></i></div><div class="search-popup" id="popup-3"><input type="text" class="popup-input" placeholder="Filter Role..." onkeyup="filterTable(3)"></div></th><th><div class="flex items-center"><span>Dept</span><i class="fa-solid fa-magnifying-glass search-trigger" onclick="toggleSearch(4, this)"></i></div><div class="search-popup" id="popup-4"><input type="text" class="popup-input" placeholder="Filter Dept..." onkeyup="filterTable(4)"></div></th><th>Password</th><th class="text-right">Actions</th></tr>
+                        </thead>
+                        <tbody id="userTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="master-tab" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold mb-4">Master Data Configuration</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-green-400"><i class="fa-solid fa-industry mr-2"></i> Plants</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_plant" placeholder="Name" class="input-field text-sm w-1/3"><input type="number" id="new_plant_lat" placeholder="Lat" class="input-field text-sm w-1/4" step="any"><input type="number" id="new_plant_lng" placeholder="Lng" class="input-field text-sm w-1/4" step="any"><button onclick="addPlant()" class="bg-green-600 hover:bg-green-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_plant" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-blue-400"><i class="fa-solid fa-building-user mr-2"></i> Departments</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_dept" placeholder="Name" class="input-field text-sm"><button onclick="addSetting('dept', 'new_dept')" class="bg-blue-600 hover:bg-blue-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_dept" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-purple-400"><i class="fa-solid fa-layer-group mr-2"></i> Product Groups</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_group" placeholder="Name" class="input-field text-sm"><button onclick="addSetting('group', 'new_group')" class="bg-purple-600 hover:bg-purple-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_group" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-pink-400"><i class="fa-solid fa-tags mr-2"></i> Categories</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_category" placeholder="e.g. Safety" class="input-field text-sm"><button onclick="addSetting('category', 'new_category')" class="bg-pink-600 hover:bg-pink-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_category" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-yellow-400"><i class="fa-solid fa-crosshairs mr-2"></i> Focus Areas</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_focus" placeholder="Name" class="input-field text-sm w-2/3"><input type="number" id="new_focus_mult" placeholder="x1.0" class="input-field text-sm w-1/3" step="0.1"><button onclick="addFocusArea()" class="bg-yellow-600 hover:bg-yellow-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_focus" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+                <div class="glass-panel p-6 flex flex-col h-96"><h3 class="text-lg font-semibold mb-4 text-cyan-400"><i class="fa-solid fa-gears mr-2"></i> Process</h3><div class="flex space-x-2 mb-4"><input type="text" id="new_process" placeholder="e.g. Assembly" class="input-field text-sm"><button onclick="addSetting('process', 'new_process')" class="bg-cyan-600 hover:bg-cyan-500 px-3 rounded"><i class="fa-solid fa-plus"></i></button></div><ul id="list_process" class="space-y-2 overflow-y-auto pr-2"></ul></div>
+            </div>
+        </div>
+
+        <div id="criteria-tab" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold mb-4">Evaluation Criteria Manager</h2>
+            <div class="flex space-x-4 mb-6">
+                <button onclick="loadCriteria('self')" id="btn-crit-self" class="crit-tab-btn px-6 py-2 rounded-lg bg-indigo-600 text-white border border-white/10 shadow-lg">Self Eval</button>
+                <button onclick="loadCriteria('hod')" id="btn-crit-hod" class="crit-tab-btn px-6 py-2 rounded-lg bg-slate-800 text-gray-400 hover:text-white border border-white/10">HOD Eval</button>
+                <button onclick="loadCriteria('committee')" id="btn-crit-committee" class="crit-tab-btn px-6 py-2 rounded-lg bg-slate-800 text-gray-400 hover:text-white border border-white/10">Committee Eval</button>
+            </div>
+            <div class="glass-panel p-6">
+                <h3 class="text-xl font-bold mb-4 text-purple-300">Add New Question</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <input type="text" id="crit_label" placeholder="Question Title (e.g., 'Cost Impact')" class="input-field">
+                    <input type="text" id="crit_key" placeholder="Unique Key (e.g., 'cost_impact')" class="input-field">
+                </div>
+                <p class="text-sm text-gray-400 mb-2">Options (Label : Points)</p>
+                <div id="optionsContainer" class="space-y-2 mb-4">
+                    <div class="flex gap-2"><input type="text" placeholder="Option Label (e.g. High)" class="input-field option-label"><input type="number" placeholder="Pts" class="input-field option-points w-24"></div>
+                    <div class="flex gap-2"><input type="text" placeholder="Option Label (e.g. Low)" class="input-field option-label"><input type="number" placeholder="Pts" class="input-field option-points w-24"></div>
+                </div>
+                <button onclick="addOptionRow()" class="text-xs text-purple-400 hover:text-purple-300 mb-4">+ Add Another Option</button>
+                <button onclick="saveCriteriaQuestion()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded-lg font-bold">Save Criteria</button>
+            </div>
+            <div id="criteriaList" class="space-y-4"></div>
+        </div>
+
+        <div id="gallery-tab" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold mb-4">Gallery Management</h2>
+            <div class="glass-panel p-6 mb-6"><h3 class="text-lg font-semibold mb-4 text-pink-400"><i class="fa-solid fa-folder-plus mr-2"></i> Create New Album/Section</h3><div class="flex space-x-2"><input type="text" id="new_gallery_section" placeholder="Album Name (e.g., 'Award Ceremony 2025')" class="input-field"><button onclick="createGallerySection()" class="bg-pink-600 hover:bg-pink-500 px-6 rounded-lg font-bold">Create</button></div></div>
+            <div id="gallerySectionsList" class="space-y-6"></div>
+        </div>
+
+        <div id="announcements-tab" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold mb-4">Announcement Manager</h2>
+            <div class="glass-panel p-6">
+                <h3 class="text-lg font-semibold mb-4 text-yellow-400"><i class="fa-solid fa-bullhorn mr-2"></i> Post New Announcement</h3>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <input type="text" id="announcement_text" placeholder="Enter announcement text..." class="input-field flex-1">
+                    <input type="text" id="announcement_link" placeholder="Link (Optional)" class="input-field md:w-64">
+                    <input type="date" id="announcement_date" class="input-field md:w-48 text-gray-400">
+                    <button onclick="postAnnouncement()" class="bg-yellow-600 hover:bg-yellow-500 px-6 rounded-lg font-bold">Post</button>
+                </div>
+            </div>
+            <div id="announcementsList" class="space-y-4 mt-6"></div>
+        </div>
+    </main>
+
+    <div id="editModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+        <div class="glass-panel p-8 w-96 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit Item</h3>
+            <input type="text" id="editInput" class="input-field mb-6">
+            <div class="flex justify-end space-x-3"><button onclick="closeModal()" class="text-gray-400 hover:text-white px-4 py-2">Cancel</button><button id="confirmEditBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold">Update</button></div>
+        </div>
+    </div>
+
+    <script>
+        let allUsers = [];
+        let isEditMode = false;
+        let currentCritType = 'self';
+
+        window.onload = function() {
+            // FIX: Restrict Date of Birth from being in the future
+            document.getElementById('dob').max = new Date().toISOString().split("T")[0];
+            
+            loadDropdowns();
+            loadUsers();
+            loadMasterLists();
+            loadGallery();
+            loadAnnouncements(); 
+            loadCriteria('self'); 
+        };
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
+            
+            ['users', 'master', 'criteria', 'gallery', 'announcements'].forEach(t => {
+                document.getElementById(`${t}-tab`).classList.add('hidden');
+            });
+            document.getElementById(`${tab}-tab`).classList.remove('hidden');
+
+            if(tab === 'criteria') loadCriteria(currentCritType);
+            if(tab === 'gallery') loadGallery();
+            if(tab === 'announcements') loadAnnouncements(); 
+        }
+
+        // 🔒 PRODUCTION FIX: Bulletproof Fetch Wrapper
+        async function fetchSecure(endpoint, options = {}) {
+            const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (!res.ok) {
+                console.error(`HTTP Error ${res.status} on ${endpoint}`);
+                throw new Error("HTTP Request Failed");
+            }
+            return res.json();
+        }
+
+        function loadUsers() { 
+            fetchSecure('/get-users').then(data => { 
+                allUsers = data; 
+                const tbody = document.getElementById('userTableBody'); 
+                tbody.innerHTML = ''; 
+                data.forEach(u => { 
+                    let role = ''; 
+                    if(u.is_admin) role += '<span class="text-red-300 font-bold bg-red-900/30 px-1 rounded text-xs mr-1">Admin</span>'; 
+                    if(u.is_hod) role += '<span class="text-orange-300 bg-orange-900/30 px-1 rounded text-xs mr-1">HOD</span>'; 
+                    if(u.is_committee) role += '<span class="text-purple-300 bg-purple-900/30 px-1 rounded text-xs mr-1">Comm</span>'; 
+                    if(u.is_coordinator) role += '<span class="text-cyan-300 bg-cyan-900/30 px-1 rounded text-xs mr-1">Coord</span>'; 
+                    if(u.is_hok) role += '<span class="text-pink-300 bg-pink-900/30 px-1 rounded text-xs">HOK</span>'; 
+                    if(!role) role = '<span class="text-gray-500 text-xs">User</span>'; 
+                    
+                    const passField = `<div class="flex items-center"><input type="password" value="${escapeHtml(u.password || '1a2b3z4d5y6q')}" id="pass-${escapeHtml(u.emp_id)}" class="bg-transparent w-24 border-none outline-none text-gray-400 text-sm font-mono" readonly><button onclick="toggleTablePass('pass-${escapeHtml(u.emp_id)}', this.querySelector('i'))" class="ml-2 text-gray-500 hover:text-white"><i class="fa-solid fa-eye"></i></button></div>`; 
+                    
+                    const tr = document.createElement('tr'); 
+                    // 🔒 PRODUCTION FIX: Escape HTML on user data
+                    tr.innerHTML = `<td class="font-mono text-indigo-300">${escapeHtml(u.emp_id)}</td><td>${escapeHtml(u.fname)} ${escapeHtml(u.lname)}</td><td class="text-gray-400 text-sm">${escapeHtml(u.email)}</td><td>${role}</td><td>${escapeHtml(u.department)}</td><td>${passField}</td><td class="text-right space-x-2"><button onclick="editUser('${escapeHtml(u.emp_id)}')" class="text-blue-400"><i class="fa-solid fa-pen"></i></button><button onclick="deleteUser('${escapeHtml(u.emp_id)}')" class="text-red-400"><i class="fa-solid fa-trash"></i></button></td>`; 
+                    tbody.appendChild(tr); 
+                }); 
+            }).catch(e => console.error(e)); 
+        }
+
+        function saveUser() {
+            const user = {
+                fname: document.getElementById('fname').value.trim(), 
+                lname: document.getElementById('lname').value.trim(), 
+                email: document.getElementById('email').value.trim(), 
+                emp_id: document.getElementById('empid').value.trim(),
+                dob: document.getElementById('dob').value, 
+                plant: document.getElementById('user_plant').value,
+                department: document.getElementById('user_dept').value, 
+                is_admin: document.getElementById('is_admin').checked,
+                is_hod: document.getElementById('is_hod').checked, 
+                is_committee: document.getElementById('is_committee').checked,
+                is_coordinator: document.getElementById('is_coordinator').checked,
+                is_hok: document.getElementById('is_hok').checked,
+                password: document.getElementById('form_password').value || '1a2b3z4d5y6q',
+                action_by: currentUser.emp_id, 
+                action_at: new Date().toISOString()
+            };
+
+            if(!user.emp_id || !user.fname || !user.email || !user.dob || !user.plant || !user.department) {
+                return alert("⚠️ Error: All fields (Emp ID, First Name, Email, DOB, Plant, Dept) are required except Last Name.");
+            }
+            if(!user.email.includes('@')) {
+                return alert("⚠️ Error: Invalid Email Format (must contain '@').");
+            }
+            if(new Date(user.dob) > new Date()) {
+                return alert("⚠️ Error: Date of Birth cannot be in the future.");
+            }
+            
+            if(!isEditMode && allUsers.some(existing => existing.emp_id === user.emp_id)) {
+                return alert("⚠️ Error: Duplicate Employee ID. User already exists in active records.");
+            }
+
+            fetchSecure(`/${isEditMode ? 'update-user' : 'add-user'}`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(user) 
+            }).then(res => { 
+                if(res.success) { 
+                    alert("User Saved Successfully!"); 
+                    clearUserForm(); 
+                    loadUsers(); 
+                } else {
+                    alert(`⚠️ Action Failed:\n${res.message}`);
+                }
+            }).catch(e => alert("Network error saving user."));
+        }
+
+        function deleteUser(id) { 
+            if (confirm("Delete user?")) { 
+                fetchSecure('/delete-user', { 
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ emp_id: id, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) 
+                }).then(() => loadUsers()).catch(e => console.error(e)); 
+            } 
+        }
+        
+        function editUser(id) {
+            const user = allUsers.find(u => u.emp_id === id); if(!user) return;
+            document.getElementById('empid').value = user.emp_id; document.getElementById('empid').disabled = true;
+            document.getElementById('fname').value = user.fname; document.getElementById('lname').value = user.lname;
+            document.getElementById('email').value = user.email; document.getElementById('dob').value = user.dob;
+            document.getElementById('user_plant').value = user.plant; document.getElementById('user_dept').value = user.department;
+            document.getElementById('is_admin').checked = user.is_admin; 
+            document.getElementById('is_hod').checked = user.is_hod; 
+            document.getElementById('is_committee').checked = user.is_committee;
+            document.getElementById('is_coordinator').checked = user.is_coordinator;
+            document.getElementById('is_hok').checked = user.is_hok;
+            document.getElementById('form_password').value = user.password || ''; 
+            isEditMode = true; document.getElementById('saveUserBtn').innerText = "Update User"; document.getElementById('formTitle').innerText = "Edit User"; document.getElementById('editModeIndicator').classList.remove('hidden');
+        }
+        
+        function clearUserForm() {
+            document.getElementById('empid').value = ''; document.getElementById('empid').disabled = false;
+            document.getElementById('fname').value = ''; document.getElementById('lname').value = '';
+            document.getElementById('email').value = ''; document.getElementById('dob').value = '';
+            document.getElementById('form_password').value = ''; 
+            document.getElementById('is_admin').checked = false; document.getElementById('is_hod').checked = false;
+            document.getElementById('is_committee').checked = false; document.getElementById('is_coordinator').checked = false;
+            document.getElementById('is_hok').checked = false;
+            isEditMode = false; document.getElementById('saveUserBtn').innerText = "Create User"; document.getElementById('formTitle').innerText = "Create User"; document.getElementById('editModeIndicator').classList.add('hidden');
+        }
+
+        function downloadTemplate() { 
+            const csvContent = "data:text/csv;charset=utf-8,emp_id,fname,lname,email,dob,department,plant,is_admin,is_hod,is_committee,is_coordinator,is_hok\n20383734,Rakesh,Bijarniya,rakesh@example.com,2000-01-01,IT,KPM,true,false,false,false,false"; 
+            const encodedUri = encodeURI(csvContent); 
+            const link = document.createElement("a"); 
+            link.setAttribute("href", encodedUri); 
+            link.setAttribute("download", "user_template.csv"); 
+            document.body.appendChild(link); 
+            link.click(); 
+            document.body.removeChild(link); 
+        }
+
+        function uploadUsers() { 
+            const input = document.getElementById('fileUpload'); 
+            const file = input.files[0]; 
+            if (!file) return; 
+
+            const reader = new FileReader(); 
+            reader.onload = function(e) { 
+                const text = e.target.result; 
+                const rows = text.split('\n').slice(1); 
+                const validUsers = []; 
+                const failedRows = [];
+
+                rows.forEach(row => { 
+                    if(!row.trim()) return;
+                    const cols = row.split(','); 
+                    if (cols.length >= 11) {
+                        const u = { 
+                            emp_id: cols[0]?.trim(), 
+                            fname: cols[1]?.trim(), 
+                            lname: cols[2]?.trim(), 
+                            email: cols[3]?.trim(), 
+                            dob: cols[4]?.trim(),
+                            department: cols[5]?.trim(), 
+                            plant: cols[6]?.trim(), 
+                            is_admin: cols[7]?.trim().toLowerCase() === 'true', 
+                            is_hod: cols[8]?.trim().toLowerCase() === 'true', 
+                            is_committee: cols[9]?.trim().toLowerCase() === 'true',
+                            is_coordinator: cols[10]?.trim().toLowerCase() === 'true',
+                            is_hok: cols[11]?.trim().toLowerCase() === 'true',
+                            _originalRow: row.trim() 
+                        };
+                        
+                        let error = "";
+                        if (!u.emp_id) error = "Missing Emp ID";
+                        else if (!u.fname) error = "Missing First Name";
+                        else if (!u.email) error = "Missing Email";
+                        else if (!u.email.includes('@')) error = "Invalid Email Format";
+                        else if (!u.plant) error = "Missing Plant";
+                        else if (!u.department) error = "Missing Department";
+                        else if (u.dob && new Date(u.dob) > new Date()) error = "DOB cannot be in the future";
+
+                        if (error) {
+                            failedRows.push(`${u._originalRow},"${error}"`);
+                        } else {
+                            validUsers.push(u);
+                        }
+                    } else {
+                        failedRows.push(`${row.trim()},"Invalid Column Count"`);
+                    }
+                }); 
+                
+                if(validUsers.length > 0) {
+                    fetchSecure(`/bulk-users`, { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify({ users: validUsers, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) 
+                    })
+                    .then(res => { 
+                        let msg = `Import Results:\n✅ Successfully Imported: ${res.count}`;
+                        
+                        if(res.failed && res.failed.length > 0) {
+                            res.failed.forEach(f => {
+                                failedRows.push(`${f._originalRow},"${f.reason}"`);
+                            });
+                        }
+
+                        if(failedRows.length > 0) {
+                            msg += `\n❌ Failed Rows: ${failedRows.length} (Downloading error report...)`;
+                            generateErrorCSV(failedRows);
+                        }
+                        alert(msg);
+                        loadUsers(); 
+                    }).catch(e => alert("Error bulk importing users.")); 
+                } else if(failedRows.length > 0) {
+                    alert(`❌ All ${failedRows.length} rows failed validation. Downloading report...`);
+                    generateErrorCSV(failedRows);
+                }
+                input.value = ''; 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        function generateErrorCSV(failedRows) {
+            const header = "emp_id,fname,lname,email,dob,department,plant,is_admin,is_hod,is_committee,is_coordinator,is_hok,ERROR_REASON\n";
+            const csvContent = "data:text/csv;charset=utf-8," + header + failedRows.join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "upload_errors.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function loadCriteria(type) {
+			currentCritType = type;
+			document.querySelectorAll('.crit-tab-btn').forEach(b => {
+				b.classList.remove('bg-indigo-600', 'text-white'); 
+				b.classList.add('bg-slate-800', 'text-gray-400');
+			});
+			const activeBtn = document.getElementById(`btn-crit-${type}`);
+			if(activeBtn) {
+				activeBtn.classList.remove('bg-slate-800', 'text-gray-400');
+				activeBtn.classList.add('bg-indigo-600', 'text-white');
+			}
+			
+			const list = document.getElementById('criteriaList');
+			list.innerHTML = '<p class="text-gray-500">Loading...</p>';
+			
+			fetchSecure(`/get-criteria?type=${type}`).then(data => {
+				list.innerHTML = '';
+				if(data.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center">No questions found.</p>'; return; }
+				
+				data.forEach((q) => {
+					let optionsHtml = q.options.map(o => `<span class="bg-slate-900 px-2 py-1 rounded text-xs border border-white/10 text-gray-300">${escapeHtml(o.label)} (${escapeHtml(o.points)})</span>`).join(' ');
+					
+					// 🔥 NEW: Added draggable="true", a data-id attribute, and the grip-vertical drag handle icon
+					list.innerHTML += `
+					<div class="glass-panel p-4 flex justify-between items-center draggable-item" draggable="true" data-id="${escapeHtml(q.id)}">
+						<div class="flex items-center gap-3">
+							<i class="fa-solid fa-grip-vertical drag-handle text-xl" title="Drag to reorder"></i>
+							<div>
+								<h4 class="font-bold text-lg text-white">${escapeHtml(q.label)}</h4>
+								<div class="text-xs text-gray-500 mb-2">Key: ${escapeHtml(q.key)}</div>
+								<div class="flex gap-2 flex-wrap">${optionsHtml}</div>
+							</div>
+						</div>
+						<button onclick="deleteCriteria('${escapeHtml(type)}', '${escapeHtml(q.id)}')" class="text-red-400 hover:text-red-300 bg-white/5 p-2 rounded"><i class="fa-solid fa-trash"></i></button>
+					</div>`;
+				});
+				
+				// 🔥 NEW: Initialize the drag and drop events after rendering the list
+				initDragAndDrop();
+
+			}).catch(e => list.innerHTML = '<p class="text-red-400">Error loading criteria.</p>');
+		}
+		
+		
+		function initDragAndDrop() {
+			const list = document.getElementById('criteriaList');
+			const draggables = list.querySelectorAll('.draggable-item');
+
+			draggables.forEach(draggable => {
+				draggable.addEventListener('dragstart', () => {
+					draggable.classList.add('dragging');
+				});
+
+				draggable.addEventListener('dragend', () => {
+					draggable.classList.remove('dragging');
+					saveNewCriteriaOrder(); // 💾 Save to DB as soon as they drop it
+				});
+			});
+
+			list.addEventListener('dragover', e => {
+				e.preventDefault();
+				const afterElement = getDragAfterElement(list, e.clientY);
+				const draggable = document.querySelector('.dragging');
+				if (afterElement == null) {
+					list.appendChild(draggable);
+				} else {
+					list.insertBefore(draggable, afterElement);
+				}
+			});
+		}
+
+		// Math helper to figure out exactly where the mouse is between two items
+		function getDragAfterElement(container, y) {
+			const draggableElements = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
+
+			return draggableElements.reduce((closest, child) => {
+				const box = child.getBoundingClientRect();
+				const offset = y - box.top - box.height / 2;
+				if (offset < 0 && offset > closest.offset) {
+					return { offset: offset, element: child };
+				} else {
+					return closest;
+				}
+			}, { offset: Number.NEGATIVE_INFINITY }).element;
+		}
+
+		// Packages the new list order and sends it to your Node.js server
+		function saveNewCriteriaOrder() {
+			const items = document.querySelectorAll('#criteriaList .draggable-item');
+			const newOrder = Array.from(items).map((item, index) => ({
+				id: item.getAttribute('data-id'),
+				orderIndex: index // Assigns 0 to the first item, 1 to the second, etc.
+			}));
+
+			fetchSecure('/update-criteria-order', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orderData: newOrder, action_by: currentUser.emp_id })
+			}).then(res => {
+				if (!res.success) {
+					console.error("Failed to save order");
+					alert("Database Error: Could not save the new order.");
+				}
+			}).catch(e => console.error(e));
+		}
+		
+		
+
+        function addOptionRow() { const div = document.createElement('div'); div.className = "flex gap-2"; div.innerHTML = `<input type="text" placeholder="Option Label" class="input-field option-label"><input type="number" placeholder="Pts" class="input-field option-points w-24">`; document.getElementById('optionsContainer').appendChild(div); }
+        
+        function saveCriteriaQuestion() { 
+            const label = document.getElementById('crit_label').value; 
+            const key = document.getElementById('crit_key').value; 
+            const labels = document.querySelectorAll('.option-label'); 
+            const points = document.querySelectorAll('.option-points'); 
+            let options = []; 
+            labels.forEach((l, i) => { if(l.value && points[i].value) options.push({ label: l.value, points: parseInt(points[i].value) }); }); 
+            if(!label || !key || options.length === 0) return alert("Please fill all details"); 
+            const payload = { type: currentCritType, question: { id: Date.now().toString(), label: label, key: key, options: options }, action_by: currentUser.emp_id, action_at: new Date().toISOString() }; 
+            fetchSecure(`/add-criteria`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
+            .then(res => { if(res.success) { alert("Saved!"); loadCriteria(currentCritType); } })
+            .catch(e => alert("Error saving criteria")); 
+        }
+
+        function deleteCriteria(type, id) { 
+            if(confirm("Delete?")) fetchSecure(`/delete-criteria`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type, id, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) loadCriteria(currentCritType); }); 
+        }
+        
+        function toggleTablePass(id, icon) { const input = document.getElementById(id); if (input.type === "password") { input.type = "text"; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } else { input.type = "password"; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); } }
+        
+        function loadDropdowns() { 
+            fetchSecure(`/get-settings`).then(data => { 
+                const plants = data.find(s => s.type === 'plant')?.values || []; 
+                const depts = data.find(s => s.type === 'dept')?.values || []; 
+                document.getElementById('user_plant').innerHTML = '<option value="">Select Plant</option>' + plants.map(p => { const name = typeof p === 'object' ? p.name : p; return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`; }).join(''); 
+                document.getElementById('user_dept').innerHTML = '<option value="">Select Dept</option>' + depts.map(d => `<option>${escapeHtml(d)}</option>`).join(''); 
+            }).catch(e => console.error(e)); 
+        }
+
+        function loadMasterLists() { 
+            fetchSecure(`/get-settings`).then(data => { 
+                ['plant', 'dept', 'group', 'category', 'focus', 'process'].forEach(type => renderList(type, data.find(s => s.type === type)?.values || [])); 
+                loadDropdowns(); 
+            }).catch(e => console.error(e)); 
+        }
+
+        function renderList(type, items) { 
+            const ul = document.getElementById(`list_${type}`); 
+            ul.innerHTML = ''; 
+            items.forEach(item => { 
+                const li = document.createElement('li'); 
+                li.className = "flex justify-between items-center bg-slate-800 p-2 rounded border border-white/5"; 
+                let displayText = item; 
+                let valForDelete = item; 
+                if(typeof item === 'object') { 
+                    if (type === 'focus') displayText = `${escapeHtml(item.name)} <span class='text-xs text-yellow-400 bg-yellow-400/10 px-2 rounded ml-2'>x${escapeHtml(item.mult)}</span>`; 
+                    else if (type === 'plant') displayText = `${escapeHtml(item.name)} <span class='text-[10px] text-gray-500 ml-2 font-mono'>(${escapeHtml(item.lat)}, ${escapeHtml(item.lng)})</span>`; 
+                    valForDelete = item.name; 
+                } else {
+                    displayText = escapeHtml(item);
+                    valForDelete = escapeHtml(item);
+                }
+                li.innerHTML = `<span class="text-sm flex items-center">${displayText}</span><div class="flex space-x-1"><button onclick="deleteSetting('${escapeHtml(type)}', '${valForDelete}')" class="text-red-400 p-1 hover:bg-white/5 rounded"><i class="fa-solid fa-xmark text-xs"></i></button></div>`; 
+                ul.appendChild(li); 
+            }); 
+        }
+        
+        function addSetting(type, id) { 
+            const v = document.getElementById(id).value; if(!v) return; 
+            fetchSecure(`/add-setting`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ type, value: v, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res=>{ if(res.success) { document.getElementById(id).value=''; loadMasterLists(); } else { alert(res.message); }}); 
+        }
+        function addFocusArea() { 
+            const name = document.getElementById('new_focus').value; const mult = document.getElementById('new_focus_mult').value; if(!name || !mult) return alert("Please enter Name and Multiplier"); 
+            fetchSecure(`/add-setting`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ type: 'focus', value: { name: name, mult: mult }, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res=>{ if(res.success) { document.getElementById('new_focus').value=''; document.getElementById('new_focus_mult').value=''; loadMasterLists(); } else { alert(res.message); } }); 
+        }
+        function addPlant() { 
+            const name = document.getElementById('new_plant').value; const lat = document.getElementById('new_plant_lat').value; const lng = document.getElementById('new_plant_lng').value; if(!name || !lat || !lng) return alert("Enter Name and Coordinates"); 
+            fetchSecure(`/add-setting`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ type: 'plant', value: { name, lat, lng }, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res=>{ if(res.success) { document.getElementById('new_plant').value=''; document.getElementById('new_plant_lat').value=''; document.getElementById('new_plant_lng').value=''; loadMasterLists(); } else { alert(res.message); } }); 
+        }
+        function deleteSetting(type, v) { 
+            if(confirm("Delete?")) { 
+                let payloadValue = v; if(type === 'focus' || type === 'plant') payloadValue = { name: v }; 
+                fetchSecure(`/delete-setting`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ type, value: payloadValue, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(()=>loadMasterLists()); 
+            } 
+        }
+        
+        function closeModal() { document.getElementById('editModal').classList.add('hidden'); }
+        function filterTable(colIndex) { const input = document.getElementById(`popup-${colIndex}`).querySelector('input'); const filter = input.value.toUpperCase(); const table = document.getElementById("userTable"); const tr = table.getElementsByTagName("tr"); for (let i = 1; i < tr.length; i++) { const td = tr[i].getElementsByTagName("td")[colIndex]; if (td) { const txtValue = td.textContent || td.innerText; if (txtValue.toUpperCase().indexOf(filter) > -1) tr[i].style.display = ""; else tr[i].style.display = "none"; } } }
+        function toggleSearch(index, icon) { document.querySelectorAll('.search-popup').forEach((p, i) => { if (i !== index) p.classList.remove('show'); }); document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active')); const popup = document.getElementById(`popup-${index}`); popup.classList.toggle('show'); icon.classList.toggle('active'); if(popup.classList.contains('show')) popup.querySelector('input').focus(); }
+        document.addEventListener('click', function(event) { if (!event.target.closest('th')) { document.querySelectorAll('.search-popup').forEach(p => p.classList.remove('show')); document.querySelectorAll('.search-trigger').forEach(t => t.classList.remove('active')); } });
+
+        function loadGallery() {
+            const container = document.getElementById('gallerySectionsList');
+            container.innerHTML = '<p class="text-gray-500 animate-pulse">Loading gallery...</p>';
+            fetchSecure(`/get-gallery`).then(data => {
+                container.innerHTML = '';
+                if(data.length === 0) { container.innerHTML = '<p class="text-gray-500">No albums created yet.</p>'; return; }
+                data.forEach(section => {
+                    let imagesHtml = '';
+                    if(section.images && section.images.length > 0) {
+                        section.images.forEach((img, idx) => {
+                            // 🔒 PRODUCTION FIX: Replace localhost in db with live URL
+                            let safeUrl = img.url;
+                            if(safeUrl && safeUrl.includes('localhost:3000')) {
+                                safeUrl = safeUrl.replace('http://localhost:3000', API_BASE_URL);
+                            }
+                            imagesHtml += `<div class="gallery-card relative group"><img src="${safeUrl}" class="gallery-img"><div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><button onclick="deleteGalleryImage('${escapeHtml(section.id)}', ${idx})" class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600"><i class="fa-solid fa-trash"></i></button></div><div class="p-2 text-xs text-gray-400 truncate">${escapeHtml(img.caption || 'No Caption')}</div></div>`;
+                        });
+                    } else { imagesHtml = '<p class="text-gray-500 text-xs italic">No photos in this album.</p>'; }
+                    
+                    const html = `
+                    <div class="glass-panel p-6 border border-white/5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-xl font-bold text-white">${escapeHtml(section.title)}</h4>
+                            <button onclick="deleteGallerySection('${escapeHtml(section.id)}')" class="text-red-400 hover:text-white transition"><i class="fa-solid fa-trash-can"></i> Delete Album</button>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-lg mb-4 flex gap-2 items-center">
+                            <input type="file" id="file_${escapeHtml(section.id)}" class="text-xs text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+                            <input type="text" id="caption_${escapeHtml(section.id)}" placeholder="Caption (optional)" class="input-field text-xs py-1 px-2 w-48">
+                            <button onclick="uploadGalleryImage('${escapeHtml(section.id)}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-xs font-bold">Upload</button>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            ${imagesHtml}
+                        </div>
+                    </div>`;
+                    container.innerHTML += html;
+                });
+            }).catch(e => container.innerHTML = '<p class="text-red-400">Error loading gallery.</p>');
+        }
+
+        function createGallerySection() { 
+            const name = document.getElementById('new_gallery_section').value.trim(); if(!name) return alert("Enter album name"); 
+            fetchSecure(`/add-gallery-section`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ title: name, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) { document.getElementById('new_gallery_section').value = ''; loadGallery(); } }).catch(e=>alert("Error creating album")); 
+        }
+
+        function deleteGallerySection(id) { 
+            if(!confirm("Delete this entire album and all its photos?")) return; 
+            fetchSecure(`/delete-gallery-section`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) loadGallery(); }); 
+        }
+
+        const convertBase64 = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error); });
+        
+        async function uploadGalleryImage(sectionId) { 
+            const fileInput = document.getElementById(`file_${sectionId}`); 
+            const captionInput = document.getElementById(`caption_${sectionId}`); 
+            const file = fileInput.files[0]; 
+            if(!file) return alert("Select a file first"); 
+            
+            // 🔒 PRODUCTION FIX: Stop massive file uploads that crash Node payload limits
+            if(file.size > 2.5 * 1024 * 1024) {
+                return alert("File is too large! Please select an image under 2.5MB.");
+            }
+
+            try { 
+                const base64 = await convertBase64(file); const caption = captionInput.value; 
+                fetchSecure(`/upload-gallery-image`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ sectionId, image: base64, caption, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) loadGallery(); else alert("Failed to upload"); }); 
+            } catch(e) { alert("File error"); } 
+        }
+
+        function deleteGalleryImage(sectionId, imageIndex) { 
+            if(!confirm("Delete this photo?")) return; 
+            fetchSecure(`/delete-gallery-image`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ sectionId, imageIndex, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) loadGallery(); }); 
+        }
+
+        function loadAnnouncements() {
+            const list = document.getElementById('announcementsList');
+            list.innerHTML = '<p class="text-gray-500 animate-pulse">Loading...</p>';
+            fetchSecure(`/get-announcements`).then(data => {
+                list.innerHTML = '';
+                if(data.length === 0) { list.innerHTML = '<p class="text-gray-500">No active announcements.</p>'; return; }
+                data.sort((a, b) => b.id - a.id);
+                data.forEach(item => {
+                    const dateDisplay = item.date ? `<span class="text-xs text-yellow-500 ml-2 border border-yellow-500/30 px-2 rounded bg-yellow-500/10">Valid until: ${new Date(item.date).toLocaleDateString()}</span>` : '';
+                    // 🔒 PRODUCTION FIX: Escape Links
+                    const linkDisplay = item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" class="block text-xs text-indigo-400 hover:text-indigo-300 mt-1 truncate"><i class="fa-solid fa-link mr-1"></i> ${escapeHtml(item.link)}</a>` : '';
+                    list.innerHTML += `<div class="glass-panel p-4 flex justify-between items-center border-l-4 border-yellow-500"><div class="flex-1 min-w-0"><p class="text-white font-medium break-words">${escapeHtml(item.message)} ${dateDisplay}</p>${linkDisplay}</div><button onclick="deleteAnnouncement('${item.id}')" class="text-red-400 hover:bg-white/5 p-2 rounded ml-4 shrink-0"><i class="fa-solid fa-trash"></i></button></div>`;
+                });
+            }).catch(e => list.innerHTML = '<p class="text-red-400">Error loading announcements.</p>');
+        }
+
+        function postAnnouncement() {
+            const msg = document.getElementById('announcement_text').value.trim();
+            const date = document.getElementById('announcement_date').value;
+            let link = document.getElementById('announcement_link').value.trim();
+            
+            if(!msg) return alert("Please enter announcement text");
+            
+            if (link && !link.startsWith('http://') && !link.startsWith('https://')) {
+                link = 'https://' + link;
+            }
+
+            fetchSecure(`/add-announcement`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ message: msg, date: date, link: link, action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) { document.getElementById('announcement_text').value = ''; document.getElementById('announcement_date').value = ''; document.getElementById('announcement_link').value = ''; loadAnnouncements(); alert("Posted successfully!"); } });
+        }
+
+        function deleteAnnouncement(id) { 
+            if(!confirm("Remove this announcement?")) return; 
+            fetchSecure(`/delete-announcement`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: Number(id), action_by: currentUser.emp_id, action_at: new Date().toISOString() }) }).then(res => { if(res.success) loadAnnouncements(); }); 
+        }
+    </script>
+</body>
+</html>

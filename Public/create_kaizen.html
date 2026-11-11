@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <title>Create New Kaizen</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <link rel="stylesheet" href="/leaflet/dist/leaflet.css">
+    <script src="navbar_loader.js"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🪟 Clean Form Panels */
+        .form-section { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1rem; padding: 1.25rem; }
+        .section-header { font-size: 1.1rem; font-weight: 700; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        
+        /* 📝 Compact Input Fields */
+        .input-field { background: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; font-size: 0.875rem; transition: all 0.2s ease; }
+        .input-field:focus { background: #ffffff; border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .input-error { border-color: #f43f5e !important; background: #fff1f2; }
+        
+        /* 🔽 Dropdown Styling */
+        .custom-dropdown { position: absolute; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.25rem; margin-top: 2px; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); display: none; top: 100%; z-index: 50; }
+        .custom-dropdown.dropup { bottom: 100%; top: auto; margin-top: 0; margin-bottom: 2px; box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1); }
+        .custom-dropdown.active { display: block; }
+        .custom-dropdown li { padding: 0.5rem 0.75rem; font-size: 0.8rem; color: #475569; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        .custom-dropdown li:hover { background: #eff6ff; color: #2563eb; }
+        
+        /* 📂 File Upload */
+        .file-upload-wrapper { border: 1px dashed #cbd5e1; background: #f8fafc; padding: 1rem; text-align: center; border-radius: 0.375rem; transition: all 0.2s; cursor: pointer; }
+        .file-upload-wrapper:hover { border-color: #3b82f6; background: #eff6ff; }
+        
+        /* Tags */
+        .tag { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 0.1rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; display: inline-flex; align-items: center; margin-right: 0.25rem; margin-top: 0.25rem; }
+        .tag i { margin-left: 4px; cursor: pointer; } 
+        
+        .hidden { display: none !important; } 
+        .required-star { color: #f43f5e; margin-left: 2px; }
+        .custom-cb { width: 1rem; height: 1rem; accent-color: #2563eb; cursor: pointer; margin-right: 0.5rem; }
+        label.text-sm { font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem; display: block; }
+        .radio-label { display: inline-flex; align-items: center; font-size: 0.85rem; color: #334155; cursor: pointer; margin-right: 1rem; }
+
+        /* 🗺️ MAP STYLES */
+        #mapModal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 10px; }
+        #mapModal.show { display: flex; }
+        .map-content { width: 100%; max-width: 800px; background: #ffffff; border-radius: 0.5rem; overflow: hidden; }
+        #mapContainer { height: 400px; width: 100%; }
+    </style>
+</head>
+<body class="min-h-screen pb-10">
+    
+    <nav class="sticky top-0 z-50 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
+        <a href="index" class="text-slate-600 hover:text-blue-600 text-sm font-bold"><i class="fa-solid fa-arrow-left mr-1"></i> Back</a>
+        <h1 class="text-lg font-bold text-blue-700">NEW KAIZEN ENTRY</h1>
+        <div class="flex items-center">
+            <label class="inline-flex items-center cursor-pointer bg-amber-50 px-2 py-1 border border-amber-200 rounded">
+                <input type="checkbox" id="offlineToggle" class="sr-only peer" onchange="toggleOfflineMode()">
+                <div class="relative w-8 h-4 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
+                <span class="ms-2 text-xs font-bold text-amber-700">Manual Entry</span>
+            </label>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 mt-4">
+
+        <div class="form-section">
+            <h2 class="section-header">Section A: Implementation Verification</h2>
+            <div class="flex items-center space-x-6">
+                <label class="text-sm !mb-0">Has this Kaizen been fully implemented?<span class="required-star">*</span></label>
+                <div class="flex">
+                    <label class="radio-label"><input type="radio" name="fully_implemented" value="Yes" class="custom-cb" onchange="checkImplementation(this.value)"> Yes</label>
+                    <label class="radio-label"><input type="radio" name="fully_implemented" value="No" class="custom-cb" onchange="checkImplementation(this.value)"> No</label>
+                </div>
+            </div>
+            <div id="impl_warning" class="hidden mt-2 bg-rose-50 border border-rose-200 p-2 rounded text-rose-700 text-xs font-bold">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> Submission Blocked: Only fully implemented Kaizens can be submitted.
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="section-header">Section B: General Information</h2>
+            
+            <div class="flex items-center space-x-6 mb-4 bg-slate-50 p-2 border border-slate-200 rounded">
+                <label class="text-sm !mb-0 text-blue-700">Kaizen Type:<span class="required-star">*</span></label>
+                <label class="radio-label !mr-4"><input type="radio" name="k_type" value="Individual" class="custom-cb" checked onchange="toggleTeam(this.value)"> Individual</label>
+                <label class="radio-label"><input type="radio" name="k_type" value="Team" class="custom-cb" onchange="toggleTeam(this.value)"> Team</label>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div class="relative input-wrapper">
+                    <label id="leader_label" class="text-sm">Name<span class="required-star">*</span></label>
+                    <input type="text" id="leader_name" class="input-field w-full rounded px-2 py-1.5 req-field strict-dropdown" autocomplete="off" placeholder="Select...">
+                    <ul class="custom-dropdown" id="list_leader_name"></ul>
+                </div>
+                
+                <div class="relative input-wrapper">
+                    <label class="text-sm flex justify-between">Plant 
+                        <i class="fa-solid fa-map-location-dot text-blue-500 cursor-pointer" onclick="openMapModal()" title="Pin Location"></i>
+                    </label>
+                    <input type="text" id="plant" class="input-field w-full rounded px-2 py-1.5 req-field strict-dropdown" autocomplete="off" placeholder="Select...">
+                    <ul class="custom-dropdown" id="list_plant"></ul>
+                    <div id="location_display" class="hidden mt-1 text-[10px] text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> Pinned: <span id="coords_text"></span> <i class="fa-solid fa-xmark ml-1 cursor-pointer text-rose-500" onclick="clearCoordinates()"></i></div>
+                    <input type="hidden" id="specific_coords">
+                </div>
+
+                <div class="relative input-wrapper">
+                    <label class="text-sm">Department<span class="required-star">*</span></label>
+                    <input type="text" id="dept" class="input-field w-full rounded px-2 py-1.5 req-field strict-dropdown" autocomplete="off" placeholder="Select...">
+                    <ul class="custom-dropdown" id="list_dept"></ul>
+                </div>
+
+                <div class="relative input-wrapper">
+                    <label class="text-sm">Implementation Date<span class="required-star">*</span></label>
+                    <input type="date" id="impl_date" class="input-field w-full rounded px-2 py-1.5 req-field">
+                </div>
+
+                <div class="relative input-wrapper">
+                    <label class="text-sm">Work Area / Asset ID<span class="required-star">*</span></label>
+                    <input type="text" id="work_area" class="input-field w-full rounded px-2 py-1.5 req-field" placeholder="e.g., Line 2">
+                </div>
+
+                <div id="supervisor_div" class="relative input-wrapper hidden bg-amber-50 p-1 border border-amber-200 rounded">
+                    <label class="text-sm !text-amber-800">Supervisor Sign-off?<span class="required-star">*</span></label>
+                    <div class="flex mt-1">
+                        <label class="radio-label !text-amber-900"><input type="radio" name="supervisor_signoff" value="Yes" class="custom-cb"> Yes</label>
+                        <label class="radio-label !text-amber-900"><input type="radio" name="supervisor_signoff" value="No" class="custom-cb"> No</label>
+                    </div>
+                </div>
+
+                <div class="relative input-wrapper">
+                    <label class="text-sm">Product Group<span class="required-star">*</span></label>
+                    <input type="text" id="product_group" class="input-field w-full rounded px-2 py-1.5 req-field strict-dropdown" autocomplete="off" placeholder="Select...">
+                    <ul class="custom-dropdown" id="list_product_group"></ul>
+                </div>
+                
+                <div class="relative input-wrapper">
+                    <label class="text-sm">Process Name<span class="required-star">*</span></label>
+                    <input type="text" id="process_name" class="input-field w-full rounded px-2 py-1.5 req-field strict-dropdown" autocomplete="off" placeholder="Select...">
+                    <ul class="custom-dropdown dropup" id="list_process_name"></ul>
+                </div>
+
+                <div class="relative input-wrapper md:col-span-3 lg:col-span-4">
+                    <label class="text-sm">Categories (Add multiple)<span class="required-star">*</span></label>
+                    <div class="flex space-x-2">
+                        <div class="relative w-64">
+                            <input type="text" id="category_input" class="input-field w-full rounded px-2 py-1.5" autocomplete="off" placeholder="Search...">
+                            <ul class="custom-dropdown dropup" id="list_category_input"></ul>
+                        </div>
+                        <button onclick="addCategoryManual()" class="bg-blue-600 text-white text-xs px-3 rounded hover:bg-blue-700">Add</button>
+                    </div>
+                    <div id="category_tags" class="mt-1 flex flex-wrap min-h-[20px]"></div>
+                </div>
+            </div>
+            
+            <div class="mt-4 hidden border-t border-slate-200 pt-3" id="team_member_container">
+                <label class="text-sm text-blue-700">Team Members<span class="required-star">*</span></label>
+                <div class="flex space-x-2 relative input-wrapper mt-1">
+                    <div class="relative w-64">
+                        <input type="text" id="member_input" class="input-field w-full rounded px-2 py-1.5 border-blue-300" autocomplete="off" placeholder="Search user...">
+                        <ul class="custom-dropdown dropup" id="list_member_input"></ul>
+                    </div>
+                    <button onclick="addMemberManual()" class="bg-blue-600 text-white text-xs px-3 rounded hover:bg-blue-700">Add</button>
+                </div>
+                <div id="members_tags" class="mt-1 flex flex-wrap"></div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="section-header">Section C: Improvement Details</h2>
+            <div class="mb-3">
+                <label class="text-sm text-blue-700">KAIZEN THEME<span class="required-star">*</span></label>
+                <input type="text" id="kaizen_theme" class="input-field w-full rounded px-3 py-2 font-bold req-field" placeholder="Enter theme...">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-rose-600">Before State<span class="required-star">*</span></label>
+                    <textarea id="before_desc" rows="3" class="input-field w-full rounded px-2 py-1.5 mb-2 req-field" placeholder="Describe the problem..."></textarea>
+                    <div class="file-upload-wrapper relative">
+                        <!-- Allowed only specific image formats and PDF -->
+                        <input type="file" id="before_file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="showFile(this)">
+                        <p id="before_file_text" class="text-xs text-slate-500 m-0"><i class="fa-solid fa-paperclip mr-1"></i> Attach Before File (Max 2.5MB)<span class="required-star">*</span></p>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm text-emerald-600">After State<span class="required-star">*</span></label>
+                    <textarea id="after_desc" rows="3" class="input-field w-full rounded px-2 py-1.5 mb-2 req-field" placeholder="Describe the solution..."></textarea>
+                    <div class="file-upload-wrapper relative">
+                        <!-- Allowed only specific image formats and PDF -->
+                        <input type="file" id="after_file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="showFile(this)">
+                        <p id="after_file_text" class="text-xs text-slate-500 m-0"><i class="fa-solid fa-paperclip mr-1"></i> Attach After File (Max 2.5MB)<span class="required-star">*</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="section-header">Section D: Benefit Type & Financials</h2>
+            
+            <div class="flex items-center space-x-6 mb-4">
+                <label class="text-sm !mb-0">Benefit Type:<span class="required-star">*</span></label>
+                <label class="radio-label"><input type="radio" name="benefit_type" value="Monetary" class="custom-cb" onchange="toggleBenefitSection(this.value)"> Monetary</label>
+                <label class="radio-label"><input type="radio" name="benefit_type" value="Non-Monetary" class="custom-cb" onchange="toggleBenefitSection(this.value)"> Non-Monetary</label>
+            </div>
+
+            <div id="monetary_section" class="hidden bg-slate-50 p-4 rounded border border-slate-200">
+                <div class="mb-4 pb-4 border-b border-slate-200">
+                    <label class="text-sm text-blue-700 mb-2 block">Monetary Category<span class="required-star">*</span></label>
+                    <div class="flex space-x-6">
+                        <label class="radio-label"><input type="radio" name="monetary_category" value="Recurring (annual)" class="custom-cb"> Recurring (annual)</label>
+                        <label class="radio-label"><input type="radio" name="monetary_category" value="One-time" class="custom-cb"> One-time</label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cost Before Improvement (₹)<span class="required-star">*</span></label>
+                        <input type="number" id="cost_before" oninput="calculateNewFinancials()" class="input-field w-full rounded px-2 py-1.5 req-monetary">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cost After Improvement (₹)<span class="required-star">*</span></label>
+                        <input type="number" id="cost_after" oninput="calculateNewFinancials()" class="input-field w-full rounded px-2 py-1.5 req-monetary">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Investment if any (₹)</label>
+                        <input type="number" id="investment" oninput="calculateNewFinancials()" class="input-field w-full rounded px-2 py-1.5">
+                    </div>
+                </div>
+
+                <div class="mb-4 pb-4 border-b border-slate-200">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Justification for Calculation<span class="required-star">*</span></label>
+                    <textarea id="justification" rows="2" class="input-field w-full rounded px-3 py-2 req-monetary" placeholder="Provide justification for before and after cost inputs..."></textarea>
+                </div>
+
+                <div class="flex justify-end bg-white p-3 rounded border border-emerald-200 shadow-sm">
+                    <div class="text-right">
+                        <span class="text-[11px] uppercase text-emerald-600 font-bold block tracking-wider">Net Savings (₹)</span>
+                        <span id="calc_net_saving" class="text-2xl font-bold text-emerald-600 font-mono">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="non_monetary_section" class="hidden bg-slate-50 p-3 rounded border border-slate-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-purple-700">Primary Impact<span class="required-star">*</span></label>
+                        <div class="grid grid-cols-1 gap-1 mt-1">
+                            <label class="radio-label"><input type="radio" name="nm_impact" value="Safety risk reduction" class="custom-cb"> Safety risk reduction</label>
+                            <label class="radio-label"><input type="radio" name="nm_impact" value="Compliance/Quality assurance" class="custom-cb"> Compliance/Quality assurance</label>
+                            <label class="radio-label"><input type="radio" name="nm_impact" value="Ergonomics/Well-being" class="custom-cb"> Ergonomics/Well-being</label>
+                            <label class="radio-label"><input type="radio" name="nm_impact" value="Customer experience" class="custom-cb"> Customer experience</label>
+                            <label class="radio-label"><input type="radio" name="nm_impact" value="Knowledge/Standardization" class="custom-cb"> Knowledge/Standardization</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-purple-700">Severity Reduction<span class="required-star">*</span></label>
+                        <div class="grid grid-cols-2 gap-2 mt-1">
+                            <label class="radio-label"><input type="radio" name="nm_severity" value="Critical" class="custom-cb text-rose-500"> Critical</label>
+                            <label class="radio-label"><input type="radio" name="nm_severity" value="High" class="custom-cb text-orange-500"> High</label>
+                            <label class="radio-label"><input type="radio" name="nm_severity" value="Medium" class="custom-cb text-amber-500"> Medium</label>
+                            <label class="radio-label"><input type="radio" name="nm_severity" value="Low" class="custom-cb text-emerald-500"> Low</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="section-header">Section E: Organizational Impact</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="text-sm">PQCDSM Impacted (Tick all applicable)</label>
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Productivity" class="custom-cb"> Productivity</label>
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Quality" class="custom-cb"> Quality</label>
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Cost" class="custom-cb"> Cost</label>
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Delivery" class="custom-cb"> Delivery</label>
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Safety" class="custom-cb"> Safety</label>
+                        <label class="radio-label"><input type="checkbox" name="pqcdsm_chk" value="Morale" class="custom-cb"> Morale</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm">Sustainability Impacted (Tick all applicable)</label>
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Energy" class="custom-cb"> Energy</label>
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Water" class="custom-cb"> Water</label>
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Emissions" class="custom-cb"> Emissions</label>
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Waste" class="custom-cb"> Waste</label>
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Circular Economy" class="custom-cb"> Circular Economy</label>
+                        <label class="radio-label"><input type="checkbox" name="sustain_chk" value="Resource Management" class="custom-cb"> Resources</label>
+                        <div class="flex items-center col-span-2 lg:col-span-1">
+                            <label class="radio-label !mr-2"><input type="checkbox" name="sustain_chk" value="Others" class="custom-cb" onchange="toggleOtherSustain(this.checked)"> Others</label>
+                            <input type="text" id="sustain_other" class="input-field rounded px-2 py-1 text-xs hidden w-full" placeholder="Specify...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="section-header">Section F: Replicability & Standards</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="text-sm">Is Standard Work / SOP updated?<span class="required-star">*</span></label>
+                    <div class="flex space-x-6 mt-2">
+                        <label class="radio-label"><input type="radio" name="sop_updated" value="Yes" class="custom-cb"> Yes</label>
+                        <label class="radio-label"><input type="radio" name="sop_updated" value="No" class="custom-cb"> No</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm">Replicability Potential<span class="required-star">*</span></label>
+                    <div class="flex flex-col space-y-2 mt-2">
+                        <label class="radio-label"><input type="radio" name="replicability" value="Yes (other lines/plants)" class="custom-cb" onchange="toggleReplicabilityReason(false)"> Yes (other lines/plants)</label>
+                        <label class="radio-label"><input type="radio" name="replicability" value="Maybe" class="custom-cb" onchange="toggleReplicabilityReason(false)"> Maybe</label>
+                        <div class="flex items-center">
+                            <label class="radio-label !mr-2"><input type="radio" name="replicability" value="No" class="custom-cb" onchange="toggleReplicabilityReason(true)"> No</label>
+                            <input type="text" id="replicability_reason" class="input-field rounded px-2 py-1 text-xs hidden w-full" placeholder="Reason...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-right pt-2 pb-6 flex justify-end">
+            <button id="proceed_btn" onclick="submitKaizen()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition flex items-center">
+                <i class="fa-solid fa-paper-plane mr-2"></i> Submit Kaizen
+            </button>
+        </div>
+    </div>
+
+    <div id="mapModal">
+        <div class="map-content">
+            <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-b border-slate-200">
+                <h3 class="text-xs font-bold text-slate-800 uppercase">Pinpoint Location</h3>
+                <button onclick="closeMapModal()" class="text-slate-500 hover:text-slate-800"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="mapContainer"></div>
+            <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-t border-slate-200">
+                <span id="mapFeedback" class="text-[10px] text-amber-600 font-mono">Click map to select...</span>
+                <button onclick="confirmLocation()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/leaflet/dist/leaflet.js"></script>
+    
+    <script>
+        // --- 🔒 IMMEDIATE SECURITY CHECK ---
+        if (!localStorage.getItem('currentUser') || !localStorage.getItem('jwt_token')) {
+            window.location.replace('login.html');
+        }
+
+        // --- 🔒 XSS SANITIZER ---
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        let selectedMembers = [], selectedCategories = [], masterData = {};
+        let plantObjects = []; 
+        let isOfflineMode = false; 
+        
+        let map, marker, selectedCoords = null;
+        
+        window.onload = async function() {
+            document.getElementById('impl_date').max = new Date().toISOString().split("T")[0];
+
+            const url = API_BASE_URL;
+
+            const [uRes, sRes] = await Promise.all([fetch(`${url}/get-users`), fetch(`${url}/get-settings`)]);
+            const uData = await uRes.json();
+            const sData = await sRes.json();
+
+            const rawPlants = sData.find(s=>s.type==='plant')?.values || [];
+            plantObjects = rawPlants; 
+            const plantNames = rawPlants.map(item => typeof item === 'object' ? item.name : item);
+
+            masterData = {
+                leader_name: uData.map(u => `${u.fname} ${u.lname} (${u.emp_id})`),
+                member_input: uData.map(u => `${u.fname} ${u.lname} (${u.emp_id})`),
+                plant: plantNames,
+                dept: sData.find(s=>s.type==='dept')?.values || [],
+                product_group: sData.find(s=>s.type==='group')?.values || [],
+                category_input: sData.find(s=>s.type==='category')?.values || [], 
+                process_name: sData.find(s=>s.type==='process')?.values || []
+            };
+
+            Object.keys(masterData).forEach(id => {
+                const input = document.getElementById(id);
+                if(input) setupCustomDropdown(input, masterData[id]);
+            });
+        };
+
+        // --- CORE UI TOGGLES ---
+        function checkImplementation(val) {
+            const btn = document.getElementById('proceed_btn');
+            const warn = document.getElementById('impl_warning');
+            if(val === 'No') {
+                btn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+                btn.disabled = true;
+                warn.classList.remove('hidden');
+            } else {
+                btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+                btn.disabled = false;
+                warn.classList.add('hidden');
+            }
+        }
+
+        function toggleBenefitSection(val) {
+            document.getElementById('monetary_section').classList.add('hidden');
+            document.getElementById('non_monetary_section').classList.add('hidden');
+            if(val === 'Monetary') document.getElementById('monetary_section').classList.remove('hidden');
+            if(val === 'Non-Monetary') document.getElementById('non_monetary_section').classList.remove('hidden');
+        }
+
+        function toggleOtherSustain(show) {
+            const input = document.getElementById('sustain_other');
+            if(show) input.classList.remove('hidden');
+            else { input.classList.add('hidden'); input.value = ''; }
+        }
+
+        function toggleReplicabilityReason(show) {
+            const input = document.getElementById('replicability_reason');
+            if(show) input.classList.remove('hidden');
+            else { input.classList.add('hidden'); input.value = ''; }
+        }
+
+        function calculateNewFinancials() {
+            const before = parseFloat(document.getElementById('cost_before').value) || 0;
+            const after = parseFloat(document.getElementById('cost_after').value) || 0;
+            const inv = parseFloat(document.getElementById('investment').value) || 0;
+
+            const netSavings = (before - after) - inv;
+            
+            const displayObj = document.getElementById('calc_net_saving');
+            displayObj.innerText = netSavings.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            if(netSavings < 0) {
+                displayObj.classList.remove('text-emerald-600');
+                displayObj.classList.add('text-rose-600');
+            } else {
+                displayObj.classList.remove('text-rose-600');
+                displayObj.classList.add('text-emerald-600');
+            }
+        }
+
+        function toggleOfflineMode() {
+            isOfflineMode = document.getElementById('offlineToggle').checked;
+            document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+            
+            const supervisorDiv = document.getElementById('supervisor_div');
+            if (isOfflineMode) {
+                supervisorDiv.classList.remove('hidden');
+            } else {
+                supervisorDiv.classList.add('hidden');
+                document.getElementById('leader_name').value = "";
+                document.getElementById('member_input').value = "";
+                selectedMembers = [];
+                document.getElementById('members_tags').innerHTML = "";
+                document.querySelectorAll('input[name="supervisor_signoff"]').forEach(r => r.checked = false);
+            }
+        }
+
+        function setupCustomDropdown(input, listData) {
+            const ul = document.getElementById("list_" + input.id);
+            const wrapper = input.closest('.input-wrapper');
+            
+            function render(filter="") {
+                const isManualField = (input.id === 'leader_name' || input.id === 'member_input');
+                if(isOfflineMode && isManualField) {
+                    ul.classList.remove("active");
+                    return; 
+                }
+                
+                let sourceList = listData;
+                if(input.id === 'member_input') {
+                    const currentLeader = document.getElementById('leader_name').value.trim();
+                    if(currentLeader) {
+                        sourceList = listData.filter(item => item !== currentLeader);
+                    }
+                }
+
+                ul.innerHTML = "";
+                const matches = sourceList.filter(i => i.toLowerCase().includes(filter.toLowerCase()));
+                if(matches.length===0) ul.innerHTML = '<li class="no-result" style="color:#94a3b8; padding:0.5rem;">No matches</li>';
+                else matches.forEach(item => {
+                    const li = document.createElement("li"); li.innerText = item;
+                    li.onclick = () => { 
+                        input.value = item; 
+                        ul.classList.remove("active"); 
+                        wrapper.style.zIndex="auto"; 
+                        input.classList.remove("input-error");
+                        if(input.id==='member_input') addMemberManual();
+                        if(input.id==='category_input') addCategoryManual(); 
+                    };
+                    ul.appendChild(li);
+                });
+                ul.classList.add("active"); wrapper.style.zIndex="100";
+            }
+            input.addEventListener("input", e => render(e.target.value));
+            input.addEventListener("focus", () => render(input.value));
+            
+            input.addEventListener("blur", () => { 
+                setTimeout(() => { 
+                    ul.classList.remove("active"); 
+                    wrapper.style.zIndex="auto"; 
+                    const isManualField = (input.id === 'leader_name' || input.id === 'member_input');
+                    if (isOfflineMode && isManualField) return; 
+
+                    if(input.value.trim()){ 
+                        const match = listData.find(i=>i.toLowerCase()===input.value.toLowerCase()); 
+                        if(!match) { 
+                            input.value=""; 
+                            input.classList.add("input-error"); 
+                            input.placeholder="Select from list"; 
+                        } else { 
+                            input.value=match; 
+                            input.classList.remove("input-error"); 
+                        } 
+                    } 
+                }, 200); 
+            });
+        }
+
+        document.addEventListener("click", e => { if(!e.target.closest(".relative")) document.querySelectorAll(".custom-dropdown").forEach(u => u.classList.remove("active")); });
+
+        function addMemberManual() {
+            const v = document.getElementById('member_input').value.trim();
+            if(!v || selectedMembers.includes(v)) return;
+            selectedMembers.push(v); renderTags('members_tags', selectedMembers, removeMember); document.getElementById('member_input').value = '';
+        }
+        function removeMember(v) { selectedMembers = selectedMembers.filter(m=>m!==v); renderTags('members_tags', selectedMembers, removeMember); }
+
+        function addCategoryManual() {
+            const v = document.getElementById('category_input').value.trim();
+            if(!v || selectedCategories.includes(v)) return;
+            selectedCategories.push(v); renderTags('category_tags', selectedCategories, removeCategory); document.getElementById('category_input').value = '';
+        }
+        function removeCategory(v) { selectedCategories = selectedCategories.filter(c=>c!==v); renderTags('category_tags', selectedCategories, removeCategory); }
+
+        function renderTags(containerId, list, removeFn) {
+            const c = document.getElementById(containerId); c.innerHTML='';
+            list.forEach(m => {
+                const tag = document.createElement('div');
+                tag.className = 'tag';
+                tag.innerHTML = `${escapeHtml(m)} <i class="fa-solid fa-xmark ml-1 cursor-pointer"></i>`;
+                tag.querySelector('i').onclick = () => removeFn(m);
+                c.appendChild(tag);
+            });
+        }
+
+        function toggleTeam(v) { 
+            const container = document.getElementById('team_member_container');
+            const label = document.getElementById('leader_label');
+            const input = document.getElementById('leader_name');
+
+            if (v === 'Team') {
+                container.classList.remove('hidden');
+                label.innerHTML = 'Team Leader Name<span class="required-star">*</span>';
+                input.placeholder = "Select Leader...";
+            } else {
+                container.classList.add('hidden');
+                label.innerHTML = 'Name<span class="required-star">*</span>';
+                input.placeholder = "Select Name...";
+            }
+        }
+
+        // --- MAP FUNCTIONS ---
+        function openMapModal() {
+            const modal = document.getElementById('mapModal');
+            modal.classList.add('show');
+            
+            if (!map) {
+                map = L.map('mapContainer').setView([20.59, 78.96], 5); 
+                L.tileLayer('/local-map-tiles/{z}/{x}/{y}.png', {
+                    minZoom: 13, 
+                    maxZoom: 17  
+                }).addTo(map);
+
+                map.on('click', function(e) {
+                    if (marker) map.removeLayer(marker);
+                    marker = L.marker(e.latlng).addTo(map);
+                    selectedCoords = e.latlng;
+                    document.getElementById('mapFeedback').innerText = `Selected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+                });
+            }
+
+            const currentPlantName = document.getElementById('plant').value.trim();
+            const plantObj = plantObjects.find(p => (typeof p === 'object' ? p.name : p) === currentPlantName);
+            
+            setTimeout(() => {
+                map.invalidateSize();
+                if (plantObj && plantObj.lat && plantObj.lng) {
+                    map.flyTo([plantObj.lat, plantObj.lng], 16, { duration: 1.5 }); 
+                } else if(selectedCoords) {
+                    map.flyTo([selectedCoords.lat, selectedCoords.lng], 16);
+                    if(marker) map.removeLayer(marker);
+                    marker = L.marker(selectedCoords).addTo(map);
+                } else {
+                    map.setView([20.59, 78.96], 5);
+                }
+            }, 200);
+        }
+
+        function closeMapModal() { document.getElementById('mapModal').classList.remove('show'); }
+
+        function confirmLocation() {
+            if (selectedCoords) {
+                updateLocationDisplay();
+                closeMapModal();
+            } else alert("Please click on the map to select a specific location.");
+        }
+
+        function updateLocationDisplay() {
+            if(selectedCoords) {
+                document.getElementById('location_display').classList.remove('hidden');
+                document.getElementById('coords_text').innerText = `${selectedCoords.lat.toFixed(5)}, ${selectedCoords.lng.toFixed(5)}`;
+                document.getElementById('specific_coords').value = `${selectedCoords.lat},${selectedCoords.lng}`;
+            }
+        }
+
+        function clearCoordinates() {
+            selectedCoords = null;
+            document.getElementById('specific_coords').value = "";
+            document.getElementById('location_display').classList.add('hidden');
+            if(marker && map) map.removeLayer(marker);
+            document.getElementById('mapFeedback').innerText = "Location cleared.";
+        }
+
+        const convertBase64 = f => new Promise((res,rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload=()=>res(r.result); r.onerror=e=>rej(e); });
+
+        function showFile(input) { 
+            if(input.files[0]) {
+                const maxSize = 2.5 * 1024 * 1024; 
+                if(input.files[0].size > maxSize) {
+                    alert("File is too large! Please select an image/PDF under 2.5MB.");
+                    input.value = ""; 
+                    document.getElementById(input.id+'_text').innerText = "Attach File (Max 2.5MB)";
+                    return;
+                }
+                document.getElementById(input.id+'_text').innerText = input.files[0].name; 
+            } 
+        }
+
+        // --- SUBMISSION LOGIC ---
+        async function submitKaizen() {
+            let valid = true;
+            const btn = document.getElementById('proceed_btn');
+
+            // 1. Implementation Check
+            const implRadio = document.querySelector('input[name="fully_implemented"]:checked');
+            if(!implRadio || implRadio.value === 'No') {
+                alert("Only fully implemented Kaizens can be submitted.");
+                return;
+            }
+
+            // 2. Text/Date Fields Validation
+            document.querySelectorAll('.req-field').forEach(el => { 
+                if(!el.value.trim()) { 
+                    el.style.borderColor='#f43f5e'; 
+                    valid=false; 
+                } else {
+                    el.style.borderColor='#cbd5e1'; 
+                }
+            });
+            
+            // 3. Mandatory Files Validation
+            const bFile = document.getElementById('before_file').files[0];
+            const aFile = document.getElementById('after_file').files[0];
+            if (!bFile) { alert("Please attach the Before State file."); return; }
+            if (!aFile) { alert("Please attach the After State file."); return; }
+            
+            // 4. Team & Category Validation
+            const isTeam = document.querySelector('input[name="k_type"]:checked').value === 'Team';
+            if(isTeam && selectedMembers.length===0) { alert("Please add Team Members."); return; }
+            if(selectedCategories.length === 0) { alert("Select at least one category."); return; }
+
+            // 5. Offline Mode Supervisor Sign-off
+            if (isOfflineMode) {
+                const supSignoff = document.querySelector('input[name="supervisor_signoff"]:checked');
+                if (!supSignoff) { alert("Please select whether Supervisor Sign-off was obtained."); return; }
+            }
+
+            // 6. Benefit Type & Financials Validation
+            const benTypeRadio = document.querySelector('input[name="benefit_type"]:checked');
+            if(!benTypeRadio) {
+                alert("Please select a Benefit Type (Monetary or Non-Monetary).");
+                return;
+            }
+
+            if (benTypeRadio.value === 'Monetary') {
+                const monCatRadio = document.querySelector('input[name="monetary_category"]:checked');
+                if(!monCatRadio) { alert("Please select a Monetary Category."); return; }
+
+                document.querySelectorAll('.req-monetary').forEach(el => {
+                    if(!el.value.trim()) { el.style.borderColor='#f43f5e'; valid=false; } 
+                    else el.style.borderColor='#cbd5e1';
+                });
+            } else if (benTypeRadio.value === 'Non-Monetary') {
+                const nmImpact = document.querySelector('input[name="nm_impact"]:checked');
+                const nmSeverity = document.querySelector('input[name="nm_severity"]:checked');
+                if(!nmImpact || !nmSeverity) {
+                    alert("Please select both Primary Impact and Severity Reduction.");
+                    return;
+                }
+            }
+
+            // 7. SOP & Replicability Validation
+            const sopRadio = document.querySelector('input[name="sop_updated"]:checked');
+            if(!sopRadio) { alert("Please select whether Standard Work / SOP was updated."); return; }
+
+            const repRadio = document.querySelector('input[name="replicability"]:checked');
+            if(!repRadio) { alert("Please select the Replicability Potential."); return; }
+
+            // Final check of valid flag for text inputs
+            if(!valid) { alert("Please fill all mandatory text fields marked with * (highlighted in red)."); return; }
+
+            // Lock button & show loading state
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Submitting...';
+
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                const creatorName = currentUser ? `${currentUser.fname} ${currentUser.lname} (${currentUser.emp_id})` : "Unknown";
+
+                const bFileBase64 = await convertBase64(bFile);
+                const bFileName = bFile.name;
+                const aFileBase64 = await convertBase64(aFile);
+                const aFileName = aFile.name;
+
+                const getCheckedVals = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value).join(', ');
+
+                const kData = {
+                    isOffline: isOfflineMode, 
+                    created_by: creatorName,
+                    
+                    implStatus: implRadio.value,
+                    implDate: document.getElementById('impl_date').value,
+                    workArea: document.getElementById('work_area').value,
+                    supervisorSignoff: document.querySelector('input[name="supervisor_signoff"]:checked')?.value || 'N/A',
+                    benefitType: benTypeRadio.value,
+                    monetaryCategory: document.querySelector('input[name="monetary_category"]:checked')?.value || '',
+                    
+                    baseMetric: document.getElementById('cost_before').value,
+                    afterMetric: document.getElementById('cost_after').value,
+                    impCost: document.getElementById('investment').value,
+                    quantMethodOther: document.getElementById('justification').value,
+                    calcAnnualSaving: document.getElementById('calc_net_saving').innerText.replace(/,/g, ''),
+                    
+                    nmImpact: document.querySelector('input[name="nm_impact"]:checked')?.value || '',
+                    nmSeverity: document.querySelector('input[name="nm_severity"]:checked')?.value || '',
+                    pqcdsm: getCheckedVals('pqcdsm_chk'),
+                    sustainability: getCheckedVals('sustain_chk'),
+                    sustainabilityOther: document.getElementById('sustain_other').value,
+                    sopUpdated: document.querySelector('input[name="sop_updated"]:checked')?.value || '',
+                    replicability: document.querySelector('input[name="replicability"]:checked')?.value || '',
+                    replicabilityReason: document.getElementById('replicability_reason').value,
+
+                    leader_name: document.getElementById('leader_name').value, 
+                    plant: document.getElementById('plant').value,
+                    department: document.getElementById('dept').value, 
+                    product_group: document.getElementById('product_group').value,
+                    category: selectedCategories.join(', '), 
+                    focus_area: "", 
+                    process_name: document.getElementById('process_name').value, 
+                    kaizen_type: isTeam ? 'Team' : 'Individual',
+                    date: new Date().toISOString().split('T')[0], 
+                    team_members: isTeam ? selectedMembers.join(', ') : '', 
+                    theme: document.getElementById('kaizen_theme').value, 
+                    before_description: document.getElementById('before_desc').value,
+                    after_description: document.getElementById('after_desc').value,
+                    before_file_data: bFileBase64, 
+                    before_file_name: bFileName,
+                    after_file_data: aFileBase64, 
+                    after_file_name: aFileName,
+                    specificLocation: document.getElementById('specific_coords').value,
+                    
+                    evaluation_scores: { final_total_score: 0, scores: {} } 
+                };
+                
+                const token = localStorage.getItem('jwt_token');
+                const response = await fetch(`${API_BASE_URL}/save-kaizen`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify(kData)
+                });
+                
+                const resData = await response.json();
+                
+                if (resData.success) {
+                    localStorage.removeItem('tempKaizenData'); 
+                    window.location.replace("view_kaizens.html"); 
+                } else {
+                    alert("Submission Failed: " + resData.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Kaizen';
+                }
+            }
+            catch(e) { 
+                alert("Network error or file size too large."); 
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Kaizen';
+            }
+        }
+    </script>
+</body>
+</html>

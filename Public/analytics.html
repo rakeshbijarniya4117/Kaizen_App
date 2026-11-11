@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="notifications.js"></script>
+    <meta charset="UTF-8">
+    <title>Analytics Command Center</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <script src="chart.js"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* 🎨 Soft Background Blobs (Matches Index) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 12s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #dbeafe; border-radius: 40% 60% 70% 30%; } /* Soft Blue */
+        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Amber */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(10deg); } }
+
+        /* 🪟 Light Glass Cards */
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(0, 0, 0, 0.05); 
+            border-radius: 1.25rem; 
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover { transform: translateY(-4px); border-color: rgba(0, 0, 0, 0.1); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08); }
+
+        /* Typography & Utilities */
+        .gradient-text { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(to right, #2563eb, #0891b2); }
+        .counter { font-variant-numeric: tabular-nums; }
+        
+        /* Rank Table (Light Mode) */
+        .rank-table th { text-align: left; padding: 12px; color: #64748b; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; font-weight: 700; }
+        .rank-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        .rank-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 0.8rem; }
+        .rank-1 { background: #f59e0b; color: white; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
+        .rank-2 { background: #94a3b8; color: white; box-shadow: 0 4px 10px rgba(148, 163, 184, 0.3); }
+        .rank-3 { background: #d97706; color: white; box-shadow: 0 4px 10px rgba(217, 119, 6, 0.3); }
+
+        /* Form Inputs (Light Mode) */
+        .glass-select { background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 4px 12px; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+        .glass-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .glass-select option { background-color: #ffffff; color: #1e293b; }
+        
+        .date-input { background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; outline: none; color-scheme: light; transition: border-color 0.2s; }
+        .date-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen relative pb-20">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="sticky top-0 z-50 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between bg-white/90 shadow-sm">
+        <a href="index" class="flex items-center text-slate-500 hover:text-blue-600 transition group">
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mr-3 group-hover:bg-blue-50 transition border border-slate-200 group-hover:border-blue-200"><i class="fa-solid fa-arrow-left text-sm"></i></div>
+            <span class="font-bold tracking-wide">Back to Home</span>
+        </a>
+        <h1 class="text-xl font-extrabold tracking-widest"><span class="gradient-text">ANALYTICS</span> CENTER</h1>
+        <div class="w-24"></div> 
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto px-6 py-10 space-y-8">
+        
+        <div class="flex flex-col md:flex-row justify-end items-center gap-4 slide-up p-4 glass-card bg-white">
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-500 uppercase font-bold">Data Range:</label>
+                <input type="date" id="globalStart" class="date-input" onchange="applyGlobalDateFilter()">
+                <span class="text-slate-400 font-bold">-</span>
+                <input type="date" id="globalEnd" class="date-input" onchange="applyGlobalDateFilter()">
+            </div>
+            <button onclick="resetDateFilter()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg transition font-semibold border border-slate-200"><i class="fa-solid fa-rotate-left mr-1"></i> Reset</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 slide-up">
+            <div class="glass-card border-l-4 border-blue-500">
+                <div class="flex justify-between items-start"><div><p class="text-xs text-blue-600 font-bold uppercase tracking-wide">Total Submissions</p><h3 class="text-4xl font-extrabold text-slate-800 mt-2 counter" id="kpiTotal">0</h3></div><div class="p-3 rounded-xl bg-blue-50 text-blue-600 border border-blue-100"><i class="fa-solid fa-layer-group text-xl"></i></div></div>
+            </div>
+            <div class="glass-card border-l-4 border-amber-500">
+                <div class="flex justify-between items-start"><div><p class="text-xs text-amber-600 font-bold uppercase tracking-wide">Pending by HOD</p><h3 class="text-4xl font-extrabold text-slate-800 mt-2 counter" id="kpiPendingHod">0</h3></div><div class="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-100"><i class="fa-solid fa-user-clock text-xl"></i></div></div><p class="text-[10px] text-slate-500 mt-2 font-medium">Submitted, awaiting review</p>
+            </div>
+            <div class="glass-card border-l-4 border-purple-500">
+                <div class="flex justify-between items-start"><div><p class="text-xs text-purple-600 font-bold uppercase tracking-wide">Pending by Committee</p><h3 class="text-4xl font-extrabold text-slate-800 mt-2 counter" id="kpiPendingComm">0</h3></div><div class="p-3 rounded-xl bg-purple-50 text-purple-600 border border-purple-100"><i class="fa-solid fa-people-group text-xl"></i></div></div><p class="text-[10px] text-slate-500 mt-2 font-medium">Approved by HOD</p>
+            </div>
+            <div class="glass-card border-l-4 border-cyan-500">
+                <div class="flex justify-between items-start"><div><p class="text-xs text-cyan-600 font-bold uppercase tracking-wide">Pending by Coordinator</p><h3 class="text-4xl font-extrabold text-slate-800 mt-2 counter" id="kpiPendingCoord">0</h3></div><div class="p-3 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100"><i class="fa-solid fa-user-check text-xl"></i></div></div><p class="text-[10px] text-slate-500 mt-2 font-medium">Final Approval Stage</p>
+            </div>
+        </div>
+
+        <div class="glass-card slide-up" style="animation-delay: 0.1s;">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-chart-line text-blue-600 mr-2"></i> Submission Trends</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="downloadChart('trendChart', 'Submission_Trends')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition" title="Download Chart"><i class="fa-solid fa-download"></i></button>
+                    <label class="text-xs text-slate-500 uppercase font-bold">View By:</label>
+                    <select id="trendFilter" class="glass-select" onchange="updateTrendChart()"><option value="day">Day Wise</option><option value="month" selected>Month Wise</option><option value="year">Year Wise</option></select>
+                </div>
+            </div>
+            <div class="relative h-72 w-full"><canvas id="trendChart"></canvas></div>
+        </div>
+
+        <div class="glass-card slide-up" style="animation-delay: 0.2s;">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-building-user text-indigo-600 mr-2"></i> Department Performance (Status)</h3>
+                <button onclick="downloadChart('deptChart', 'Department_Performance')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition" title="Download Chart"><i class="fa-solid fa-download"></i></button>
+            </div>
+            <div class="relative h-80 w-full"><canvas id="deptChart"></canvas></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 slide-up" style="animation-delay: 0.3s;">
+            
+            <div class="glass-card">
+                <div class="mb-6 flex justify-between items-start">
+                    <div><h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-industry text-cyan-600 mr-2"></i> Plant Performance</h3><p class="text-sm text-slate-500 font-medium">Total submissions by location.</p></div>
+                    <button onclick="downloadChart('plantChart', 'Plant_Performance')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <div class="relative h-80 w-full"><canvas id="plantChart"></canvas></div>
+            </div>
+
+            <div class="glass-card">
+                <div class="mb-6 flex justify-between items-start">
+                    <div><h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-tags text-emerald-600 mr-2"></i> Improvement Categories</h3><p class="text-sm text-slate-500 font-medium">Distribution of Kaizen types.</p></div>
+                    <button onclick="downloadChart('categoryChart', 'Category_Distribution')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <div class="relative h-80 w-full flex justify-center"><canvas id="categoryChart"></canvas></div>
+            </div>
+
+            <div class="glass-card">
+                <div class="mb-6 flex justify-between items-start">
+                    <div><h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-gears text-pink-600 mr-2"></i> Improvement Process</h3><p class="text-sm text-slate-500 font-medium">Areas being targeted for change.</p></div>
+                    <button onclick="downloadChart('processChart', 'Process_Distribution')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <div class="relative h-96 w-full flex justify-center"><canvas id="processChart"></canvas></div>
+            </div>
+
+            <div class="glass-card">
+                <div class="mb-6 flex justify-between items-start">
+                    <div><h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-crosshairs text-amber-500 mr-2"></i> Focus Area Distribution</h3><p class="text-sm text-slate-500 font-medium">Strategic impact breakdown.</p></div>
+                    <button onclick="downloadChart('focusChart', 'Focus_Area_Distribution')" class="text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 p-2 rounded transition"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <div class="relative h-96 w-full flex justify-center"><canvas id="focusChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="glass-card slide-up" style="animation-delay: 0.4s;">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-trophy text-amber-500 mr-2"></i> Leaderboard</h3>
+                <div class="flex items-center space-x-2">
+                    <label class="text-xs text-slate-500 uppercase font-bold">Sort By:</label>
+                    <select id="leaderboardFilter" class="glass-select bg-white" onchange="renderLeaderboard()">
+                        <option value="submissions">Most Submissions</option>
+                        <option value="score">Highest Impact (Total Score)</option>
+                        </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full rank-table">
+                    <thead>
+                        <tr>
+                            <th class="w-16">Rank</th>
+                            <th>Employee Name</th>
+                            <th class="text-center" id="lb-col-1">Submissions</th>
+                            <th class="text-center" id="lb-col-2">Total Score</th>
+                            <th class="w-1/3">Performance Bar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 🔒 IMMEDIATE SECURITY CHECK ---
+        if (!localStorage.getItem('currentUser') || !localStorage.getItem('jwt_token')) {
+            window.location.replace('login.html');
+        }
+
+        // --- 🔒 XSS SANITIZER ---
+        function escapeHtml(text) {
+            if (!text && text !== 0) return "";
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // --- GLOBAL DATA STORE ---
+        let rawData = [];
+        let filteredData = []; 
+        
+        // --- CHART INSTANCES ---
+        let trendChartInstance = null;
+        let deptChartInstance = null;
+        let plantChartInstance = null;
+        let categoryChartInstance = null;
+        let processChartInstance = null;
+        let focusChartInstance = null;
+
+        // --- CONFIGURATION (UPDATED FOR LIGHT THEME) ---
+        Chart.defaults.color = '#64748b';
+        Chart.defaults.font.family = 'Poppins';
+        Chart.defaults.scale.grid.color = 'rgba(0, 0, 0, 0.05)';
+
+        // 🔒 PRODUCTION FIX: Bulletproof Fetch
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/get-kaizens`);
+                if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+                const data = await res.json();
+                
+                rawData = data;
+                filteredData = data; 
+                processAnalytics(filteredData);
+            } catch (err) {
+                console.error("Data Load Error:", err);
+            }
+        });
+
+        // --- FILTER LOGIC ---
+        function applyGlobalDateFilter() {
+            const startStr = document.getElementById('globalStart').value;
+            const endStr = document.getElementById('globalEnd').value;
+
+            if (!startStr && !endStr) {
+                filteredData = rawData; 
+            } else {
+                const startDate = startStr ? new Date(startStr) : new Date('1900-01-01');
+                const endDate = endStr ? new Date(endStr) : new Date();
+                endDate.setHours(23, 59, 59); 
+
+                filteredData = rawData.filter(item => {
+                    const itemDateStr = item.date || (item.timestamp ? item.timestamp.split(',')[0] : null);
+                    if (!itemDateStr) return false;
+                    const itemDate = new Date(itemDateStr);
+                    return itemDate >= startDate && itemDate <= endDate;
+                });
+            }
+            processAnalytics(filteredData);
+        }
+
+        function resetDateFilter() {
+            document.getElementById('globalStart').value = '';
+            document.getElementById('globalEnd').value = '';
+            applyGlobalDateFilter();
+        }
+
+        // --- DOWNLOAD CHART ---
+        function downloadChart(chartId, fileName) {
+            const canvas = document.getElementById(chartId);
+            const link = document.createElement('a');
+            link.download = `${fileName}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        }
+
+        function processAnalytics(data) {
+            // KPI Processing
+            let pendingHOD = 0, pendingComm = 0, pendingCoord = 0;
+            
+            data.forEach(item => {
+                const s = (item.status || "").toLowerCase();
+                if (s.includes("submitted") || s.includes("waiting for hod")) pendingHOD++;
+                if (s.includes("approved by hod") || s.includes("waiting for committee") || s.includes("partially")) pendingComm++;
+                if (s.includes("waiting for final approval")) pendingCoord++; // Coordinator
+            });
+            
+            animateValue("kpiTotal", parseInt(document.getElementById("kpiTotal").innerText), data.length, 500);
+            animateValue("kpiPendingHod", parseInt(document.getElementById("kpiPendingHod").innerText), pendingHOD, 500);
+            animateValue("kpiPendingComm", parseInt(document.getElementById("kpiPendingComm").innerText), pendingComm, 500);
+            animateValue("kpiPendingCoord", parseInt(document.getElementById("kpiPendingCoord").innerText), pendingCoord, 500);
+
+            // RENDER CHARTS
+            updateTrendChart(data); 
+            renderDeptStacked(data);
+            renderNewDetailedCharts(data);
+            renderLeaderboard(); // Uses global filteredData inside
+        }
+
+        // --- TREND & DEPT CHARTS ---
+        function updateTrendChart(data = filteredData) {
+            const type = document.getElementById('trendFilter').value;
+            const grouped = {};
+            data.forEach(item => {
+                const dStr = item.date || (item.timestamp ? item.timestamp.split(',')[0] : null);
+                if (!dStr) return;
+                const dateObj = new Date(dStr);
+                if (isNaN(dateObj)) return;
+                let key;
+                if (type === 'day') key = dateObj.toLocaleDateString('en-GB');
+                else if (type === 'month') key = dateObj.toLocaleString('default', { month: 'short', year: '2-digit' });
+                else if (type === 'year') key = dateObj.getFullYear();
+                grouped[key] = (grouped[key] || 0) + 1;
+            });
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: Object.keys(grouped), datasets: [{ label: 'Submissions', data: Object.values(grouped), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderDeptStacked(data) {
+            const depts = {};
+            data.forEach(item => {
+                const d = item.department || item.dept || "Unknown";
+                if (!depts[d]) depts[d] = { pending: 0, completed: 0, rejected: 0 };
+                const s = (item.status || "").toLowerCase();
+                if (s.includes("completed")) depts[d].completed++;
+                else if (s.includes("reject")) depts[d].rejected++;
+                else depts[d].pending++;
+            });
+            const labels = Object.keys(depts);
+            if (deptChartInstance) deptChartInstance.destroy();
+            deptChartInstance = new Chart(document.getElementById('deptChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Pending', data: labels.map(l => depts[l].pending), backgroundColor: '#f59e0b' },
+                        { label: 'Completed', data: labels.map(l => depts[l].completed), backgroundColor: '#10b981' },
+                        { label: 'Rejected', data: labels.map(l => depts[l].rejected), backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top' } } }
+            });
+        }
+
+        // --- DETAILED CHARTS ---
+        function renderNewDetailedCharts(data) {
+            const agg = (field) => {
+                const counts = {};
+                data.forEach(i => { const val = i[field] || "Unknown"; counts[val] = (counts[val] || 0) + 1; });
+                return counts;
+            };
+
+            const plantData = agg('plant');
+            const catData = agg('category');
+            const procData = agg('process_name');
+            const focusData = agg('focus_area');
+            const colors = ['#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+
+            // 1. PLANT
+            if (plantChartInstance) plantChartInstance.destroy();
+            plantChartInstance = new Chart(document.getElementById('plantChart'), {
+                type: 'bar',
+                data: { labels: Object.keys(plantData), datasets: [{ label: 'Submissions', data: Object.values(plantData), backgroundColor: '#06b6d4', borderRadius: 8, barThickness: 20 }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { display: false } }, y: { grid: { color: 'rgba(0,0,0,0.05)' } } } }
+            });
+
+            // 2. CATEGORIES
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 10 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { boxWidth: 15, padding: 15, font: { size: 11 } } } } }
+            });
+
+            // 3. PROCESS (Changed to Pie)
+            if (processChartInstance) processChartInstance.destroy();
+            processChartInstance = new Chart(document.getElementById('processChart'), {
+                type: 'pie',
+                data: { labels: Object.keys(procData), datasets: [{ data: Object.values(procData), backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 10 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 15, padding: 15, font: { size: 11 } } } } }
+            });
+
+            // 4. FOCUS AREA (Pie)
+            if (focusChartInstance) focusChartInstance.destroy();
+            focusChartInstance = new Chart(document.getElementById('focusChart'), {
+                type: 'pie',
+                data: { labels: Object.keys(focusData), datasets: [{ data: Object.values(focusData), backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 10 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 15, padding: 15, font: { size: 11 } } } } }
+            });
+        }
+
+        // --- UPDATED LEADERBOARD LOGIC ---
+        function renderLeaderboard() {
+            const data = filteredData; // Use global filtered data
+            const sortType = document.getElementById('leaderboardFilter').value;
+            const users = {}; 
+
+            data.forEach(item => {
+                const u = item.leader_name ? item.leader_name.split('(')[0].trim() : "Unknown";
+                if(!users[u]) users[u] = { count: 0, totalScore: 0 };
+                
+                users[u].count++;
+                
+                const score = parseInt(item.current_total_score || item.evaluation_scores?.final_total_score || 0);
+                users[u].totalScore += score;
+            });
+
+            // Dynamic Column Headers
+            const col1 = document.getElementById('lb-col-1');
+            const col2 = document.getElementById('lb-col-2');
+            
+            col1.innerText = "Submissions";
+            col2.innerText = sortType === 'score' ? "Total Impact Score" : "Avg. Score";
+
+            // Sorting Logic
+            let sorted = Object.entries(users).map(([name, stat]) => ({ 
+                name, 
+                count: stat.count, 
+                totalScore: stat.totalScore,
+                avgScore: stat.count ? Math.round(stat.totalScore / stat.count) : 0
+            }));
+
+            if (sortType === 'submissions') {
+                sorted.sort((a, b) => b.count - a.count || b.totalScore - a.totalScore);
+            } else if (sortType === 'score') {
+                sorted.sort((a, b) => b.totalScore - a.totalScore || b.count - a.count);
+            }
+
+            sorted = sorted.slice(0, 5); // Top 5
+            
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+            
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-500">No data available for this selection.</td></tr>';
+                return;
+            }
+
+            // Max value for progress bar calculation
+            let maxVal = 0;
+            if (sortType === 'submissions') maxVal = sorted[0]?.count;
+            else if (sortType === 'score') maxVal = sorted[0]?.totalScore;
+            if(maxVal === 0) maxVal = 1;
+
+            sorted.forEach((u, i) => {
+                let rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'bg-slate-200 text-slate-600';
+                
+                // Determine Value to Display in Col 2
+                let displayVal = u.avgScore; // Default for submissions
+                if (sortType === 'score') displayVal = u.totalScore;
+
+                // Determine Bar Value
+                let barVal = u.count;
+                if (sortType === 'score') barVal = u.totalScore;
+
+                // 🔒 PRODUCTION FIX: Escaped User Name injected into Leaderboard
+                tbody.innerHTML += `
+                    <tr>
+                        <td><div class="rank-badge ${rankClass}">${i + 1}</div></td>
+                        <td class="font-bold text-slate-800">${escapeHtml(u.name)}</td>
+                        <td class="text-center text-blue-600 font-mono font-semibold">${u.count}</td>
+                        <td class="text-center text-emerald-600 font-mono font-bold">${displayVal}</td>
+                        <td>
+                            <div class="w-full bg-slate-200 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-500" style="width: ${(barVal / maxVal) * 100}%"></div>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id); let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) window.requestAnimationFrame(step);
+            }; window.requestAnimationFrame(step);
+        }
+    </script>
+</body>
+</html>

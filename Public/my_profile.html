@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="notifications.js"></script>
+    <script src="config.js"></script> 
+    <script src="auth.js"></script>   
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Kaizen L&T Valves</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="poppins.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        
+        /* Animated Background Blobs (Matches Light Theme) */
+        .blob { position: absolute; filter: blur(90px); z-index: -1; opacity: 0.6; animation: float 10s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 600px; height: 600px; background: #dbeafe; border-radius: 40% 60% 70% 30%; } /* Soft Blue */
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #fef3c7; border-radius: 60% 40% 30% 70%; animation-delay: -5s; } /* Soft Amber */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(30px, 50px) rotate(10deg); } }
+
+        /* Light Glass Cards */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .info-card:hover {
+            transform: translateY(-5px);
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Animations */
+        .slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(30px); }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+        .gradient-text { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(to right, #2563eb, #0891b2); }
+    </style>
+</head>
+<body class="min-h-screen relative flex flex-col text-slate-800">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+
+    <nav class="w-full fixed top-0 z-50 backdrop-blur-md border-b border-slate-200 bg-white/90 shadow-sm">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <a href="index" class="flex items-center group text-slate-500 hover:text-blue-600 transition">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mr-3 border border-slate-200 group-hover:bg-blue-50 group-hover:border-blue-200 transition-all duration-300">
+                    <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-1 transition"></i>
+                </div>
+                <span class="font-bold tracking-wide">Back to Dashboard</span>
+            </a>
+            <h1 class="text-xl font-extrabold tracking-widest uppercase text-slate-800">My <span class="gradient-text">Profile</span></h1>
+        </div>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center pt-28 pb-12 px-4 sm:px-6">
+        <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            <div class="md:col-span-1 slide-up">
+                <div class="glass-panel rounded-3xl p-8 flex flex-col items-center text-center h-full relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-500/10 to-transparent"></div>
+                    
+                    <div class="relative z-10 w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-blue-500 via-cyan-500 to-indigo-500 mb-6 shadow-xl">
+                        <div class="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                            <span id="avatar_initial" class="text-5xl font-extrabold text-slate-800"></span>
+                        </div>
+                    </div>
+
+                    <h2 id="p_name" class="text-2xl font-extrabold text-slate-900 mb-2">Loading...</h2>
+                    <p id="p_empid_display" class="text-sm font-mono font-medium text-slate-500 mb-6 bg-slate-50 px-3 py-1 rounded-full border border-slate-200 shadow-sm"></p>
+
+                    <div id="role_badges" class="flex flex-wrap justify-center gap-2 mb-8 w-full">
+                        </div>
+
+                    <div class="mt-auto w-full space-y-3">
+                        <button onclick="logout()" class="w-full py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-bold hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all duration-300 flex items-center justify-center group shadow-sm">
+                            <i class="fa-solid fa-arrow-right-from-bracket mr-2 group-hover:rotate-180 transition-transform"></i> Sign Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md:col-span-2 slide-up delay-100">
+                <div class="glass-panel rounded-3xl p-8 h-full">
+                    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 border-b border-slate-200 pb-4 flex items-center">
+                        <i class="fa-regular fa-id-card mr-3 text-blue-500"></i> Personal Information
+                    </h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        
+                        <div class="info-card p-5 rounded-2xl group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Employee ID</span>
+                                <i class="fa-solid fa-fingerprint text-indigo-500 group-hover:text-indigo-600 transition"></i>
+                            </div>
+                            <p id="p_empid" class="text-lg font-mono text-slate-800 font-semibold">...</p>
+                        </div>
+
+                        <div class="info-card p-5 rounded-2xl group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Department</span>
+                                <i class="fa-solid fa-building text-purple-500 group-hover:text-purple-600 transition"></i>
+                            </div>
+                            <p id="p_dept" class="text-lg text-slate-800 font-semibold">...</p>
+                        </div>
+
+                        <div class="info-card p-5 rounded-2xl group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Plant Location</span>
+                                <i class="fa-solid fa-industry text-pink-500 group-hover:text-pink-600 transition"></i>
+                            </div>
+                            <p id="p_plant" class="text-lg text-slate-800 font-semibold">...</p>
+                        </div>
+
+                        <!-- <div class="info-card p-5 rounded-2xl group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Date of Birth</span>
+                                <i class="fa-regular fa-calendar text-amber-500 group-hover:text-amber-600 transition"></i>
+                            </div>
+                            <p id="p_dob" class="text-lg text-slate-800 font-semibold">...</p>
+                        </div> -->
+
+                        <div class="info-card p-5 rounded-2xl col-span-1 sm:col-span-2 group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Email Address</span>
+                                <i class="fa-regular fa-envelope text-blue-500 group-hover:text-blue-600 transition"></i>
+                            </div>
+                            <p id="p_email" class="text-lg text-slate-800 font-semibold">...</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-100 flex items-start space-x-3 shadow-sm">
+                        <i class="fa-solid fa-circle-info text-blue-500 mt-1"></i>
+                        <p class="text-sm text-slate-600 leading-relaxed font-medium">
+							For any technical issues, please contact <span class="text-blue-700 font-bold">rakesh.b@lntvalves.com</span>. 
+							For any other queries, please contact <span class="text-blue-700 font-bold">pughazhendi.a@lntvalves.com</span>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const u = JSON.parse(localStorage.getItem('currentUser'));
+            // 🔒 PRODUCTION FIX: Secure back-button redirect
+            if(!u) { window.location.replace("/login"); return; }
+
+            // 1. Basic Info
+            document.getElementById('p_name').innerText = `${u.fname} ${u.lname}`;
+            document.getElementById('avatar_initial').innerText = u.fname.charAt(0);
+            
+            // 2. Roles Logic (Updated for Light Theme Colors)
+            const rolesContainer = document.getElementById('role_badges');
+            const roles = [];
+
+            // Helper to add badge
+            const addBadge = (text, colorClass) => {
+                const span = document.createElement('span');
+                span.className = `px-3 py-1 rounded-full text-xs font-bold border shadow-sm ${colorClass}`;
+                span.innerText = text;
+                rolesContainer.appendChild(span);
+            };
+
+            if(u.is_admin === "true" || u.is_admin === true) addBadge("ADMIN", "bg-rose-50 text-rose-700 border-rose-200");
+            if(u.is_hok === "true" || u.is_hok === true) addBadge("HEAD OF KAIZEN COMMITTEE", "bg-red-50 text-red-700 border-red-200");
+            if(u.is_hod === "true" || u.is_hod === true) addBadge("HEAD OF Department", "bg-amber-50 text-amber-700 border-amber-200");
+            if(u.is_committee === "true" || u.is_committee === true) addBadge("COMMITTEE Member", "bg-purple-50 text-purple-700 border-purple-200");
+            if(u.is_coordinator === "true" || u.is_coordinator === true) addBadge("COORDINATOR", "bg-cyan-50 text-cyan-700 border-cyan-200");
+            
+            // Default User Badge if no special roles
+            if(rolesContainer.children.length === 0) {
+                addBadge("EMPLOYEE", "bg-slate-100 text-slate-600 border-slate-200");
+            }
+
+            // 3. Grid Details
+            document.getElementById('p_empid').innerText = u.emp_id || "-";
+            document.getElementById('p_empid_display').innerText = `ID: ${u.emp_id || "-"}`;
+            document.getElementById('p_email').innerText = u.email || "-";
+            document.getElementById('p_dept').innerText = u.department || "-";
+            document.getElementById('p_plant').innerText = u.plant || "-";
+            document.getElementById('p_dob').innerText = u.dob || "-";
+        });
+        
+        // 🔒 PRODUCTION FIX: Deleted redundant logout() function. 
+        // We now correctly trigger the secure logout() loaded from auth.js which destroys the JWT.
+    </script>
+</body>
+</html>
